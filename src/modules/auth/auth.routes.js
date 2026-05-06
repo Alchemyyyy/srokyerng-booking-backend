@@ -10,6 +10,12 @@ router.post("/register", authController.register);
 router.post("/login", authController.login);
 router.get("/me", authMiddleware, authController.getMe);
 router.get(
+  "/customer-only",
+  authMiddleware,
+  roleMiddleware(ROLES.CUSTOMER),
+  authController.customerOnly
+);
+router.get(
   "/admin-only",
   authMiddleware,
   roleMiddleware(ROLES.ADMIN),
