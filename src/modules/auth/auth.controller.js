@@ -45,9 +45,17 @@ const adminOnly = asyncHandler(async (req, res) => {
   });
 });
 
+const customerOnly = asyncHandler(async (req, res) => {
+  return successResponse(res, "Customer access granted", {
+    id: req.user.id,
+    role: req.user.role,
+  });
+});
+
 module.exports = {
   register,
   login,
   getMe,
   adminOnly,
+  customerOnly,
 };
