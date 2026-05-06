@@ -6,7 +6,6 @@ Backend API for an accommodation booking platform (customers, owners, admins).
 
 - Implemented: `auth` module (`register`, `login`, auth middleware, role middleware)
 - Scaffolded only: `users`, `properties`, `rooms`, `reservations`, `payments`, `reviews`, `amenities`, `admin`
-- Module status reference: `docs/module-status.md`
 
 ## Tech Stack
 
@@ -106,6 +105,7 @@ npm start
 - `POST /auth/register`
 - `POST /auth/login`
 - `GET /auth/me` (requires `Authorization: Bearer <token>`)
+- `GET /auth/customer-only` (requires customer role)
 - `GET /auth/admin-only` (requires admin role)
 
 ## Response Shape
@@ -166,6 +166,7 @@ npm run format:check
 
 ## Team Notes
 
-- Keep module layering consistent: `routes -> controller -> service -> model`.
-- Add validation for every write endpoint.
-- Add endpoint tests for each new module before enabling its route in `src/routes/index.js`.
+- `docs/setup-guide.md`
+- `docs/api-contract.md`
+- `docs/backend-rules.md`
+- `docs/module-ownership.md`

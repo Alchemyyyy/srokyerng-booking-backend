@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const authController = require("../src/modules/auth/auth.controller");
 const authMiddleware = require("../src/middleware/auth.middleware");
+const roleMiddleware = require("../src/middleware/role.middleware");
 
 const createRes = () => {
   return {
@@ -53,4 +54,30 @@ test("auth middleware returns 401 without bearer token", () => {
   assert.equal(res.statusCode, 401);
   assert.equal(res.payload.success, false);
   assert.equal(res.payload.message, "Unauthorized access");
+});
+
+test("role middleware returns 403 when role is not allowed", () => {
+  const req = { user: { id: 1, role: "owner" } };
+  const res = createRes();
+  const next = () => {};
+
+  roleMiddleware("customer")(req, res, next);
+
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.payload.success, false);
+  assert.equal(res.payload.message, "Forbidden access");
+});
+
+test("role middleware allows customer role for customer endpoints", () => {
+  const req = { user: { id: 2, role: "customer" } };
+  const res = createRes();
+  let called = false;
+
+  const next = () => {
+    called = true;
+  };
+
+  roleMiddleware("customer")(req, res, next);
+
+  assert.equal(called, true);
 });
