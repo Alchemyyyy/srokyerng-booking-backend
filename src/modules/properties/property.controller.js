@@ -5,7 +5,7 @@ const { successResponse, errorResponse } = require("../../utils/apiResponse");
 const property = require("./property.service");
 
 const getAll = asyncHandler(async (req, res) => {
-  let result = await property.getAll(req.query);
+  let result = await property.getAllApproved(req.query);
   if (!result) {
     return errorResponse(res, "Internal server error", 500);
   }

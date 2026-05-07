@@ -1,10 +1,10 @@
 const asyncHandler = require("../../utils/asyncHandler");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
-const adminService = require("./admin.service");
+const property = require("../properties/property.service");
 
 const getAll = asyncHandler(async (req, res) => {
-  const result = await adminService.getAll();
+  const result = await property.getAll();
   if (!result) {
     return errorResponse(res, "Internal server error", 500);
   }
