@@ -1,8 +1,4 @@
-// src/modules/owner/owner.controller.js
-/**
- * Owner Controller Module
- * Handles owner-specific operations using real service modules
- */
+// =============================== [ Visal Start ] ==============================
 
 const reservationService = require("../reservations/reservation.service");
 const { successResponse } = require("../../utils/apiResponse");
@@ -108,3 +104,5 @@ module.exports = {
   getPayments,
   getReviews,
 };
+
+// =============================== [ Visal End ] ==============================
