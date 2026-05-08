@@ -2,7 +2,6 @@ const app = require("./app");
 const pool = require("./config/db");
 const env = require("./config/env");
 
-
 const BASE_PORT = env.PORT;
 
 const listenWithFallback = (startPort) => {
@@ -35,6 +34,5 @@ const startServer = async () => {
     process.exit(1);
   }
 };
-
 
 startServer();
