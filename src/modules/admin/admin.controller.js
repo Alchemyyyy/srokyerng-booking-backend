@@ -1,16 +1,8 @@
-// =============================== [ Visal Start ] ==============================
-
-const reservationService = require("../reservations/reservation.service");
-const { successResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
+const { successResponse, errorResponse } = require("../../utils/apiResponse");
+const reservationService = require("../reservations/reservation.service");
+const propertyService = require("../properties/property.service");
 
-/**
- * Get all reservations in the system
- * @route GET /api/admin/reservations
- * @access Admin only
- * @query status - Filter by reservation status
- * @query property_id - Filter by property ID
- */
 const getAllReservations = asyncHandler(async (req, res) => {
   const { status, property_id } = req.query;
   const filters = {};
@@ -23,13 +15,6 @@ const getAllReservations = asyncHandler(async (req, res) => {
   return successResponse(res, "All reservations retrieved successfully", reservations);
 });
 
-/**
- * Update reservation status
- * @route PATCH /api/admin/reservations/:id/status
- * @access Admin only
- * @param id - Reservation ID
- * @body status - New status (confirmed, completed, cancelled)
- */
 const updateReservationStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -43,9 +28,29 @@ const updateReservationStatus = asyncHandler(async (req, res) => {
   return successResponse(res, "Reservation status updated successfully", reservation);
 });
 
+const getAll = asyncHandler(async (req, res) => {
+  const result = await propertyService.getAll();
+
+  if (!result) {
+    return errorResponse(res, "Internal server error", 500);
+  }
+
+  return successResponse(res, "Get all properties successfully", result, 200);
+});
+
+const updateStatusProperty = asyncHandler(async (req, res) => {
+  const result = await propertyService.updateStatus(req.user.id, req.params.id, req.body);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
 module.exports = {
   getAllReservations,
   updateReservationStatus,
+  getAll,
+  updateStatusProperty,
 };
-
-// ============================== [ Visal End ] ==============================

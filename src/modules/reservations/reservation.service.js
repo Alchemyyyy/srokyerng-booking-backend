@@ -1,6 +1,4 @@
 const reservationModel = require("./reservation.model");
-const { RESERVATION_STATUS } = require("../../constants/statuses");
-
 /**
  * Calculates total number of nights between check-in and check-out dates
  * @param {string} checkInDate - Check-in date (YYYY-MM-DD)
@@ -22,7 +20,7 @@ const calculateTotalNights = (checkInDate, checkOutDate) => {
  * @returns {number} Total amount
  */
 const calculateTotalAmount = (pricePerNight, totalNights) => {
-  return pricePerNight * totalNights;
+  return Number((pricePerNight * totalNights).toFixed(2));
 };
 
 /**
@@ -242,7 +240,7 @@ const cancelReservation = async (reservationId, customerId, reason = null) => {
  * @returns {Promise<Object>} Updated reservation object
  * @throws {Error} If reservation not found or invalid status
  */
-const updateReservationStatusByAdmin = async (reservationId, status, adminId) => {
+const updateReservationStatusByAdmin = async (reservationId, status, _adminId) => {
   // Step 1: Get reservation details
   const reservation = await reservationModel.findReservationById(reservationId);
 

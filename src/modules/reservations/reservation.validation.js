@@ -1,5 +1,3 @@
-const { RESERVATION_STATUS } = require("../../constants/statuses");
-
 /**
  * Validates reservation creation request body
  * @param {Object} body - Request body object
