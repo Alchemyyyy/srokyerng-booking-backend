@@ -111,6 +111,22 @@ GET /auth/me
 
 Requires authentication.
 
+Returns the current active user from the database:
+
+```json
+{
+  "id": 1,
+  "full_name": "Customer User",
+  "email": "customer@example.com",
+  "phone": "012345678",
+  "role": "customer",
+  "status": "active",
+  "profile_image_url": null,
+  "last_login": "2026-05-10T10:00:00.000Z",
+  "email_verified_at": null
+}
+```
+
 ### Customer Protected Check
 
 ```text
@@ -121,6 +137,17 @@ Requires:
 
 - authenticated user
 - `customer` role
+
+### Owner Protected Check
+
+```text
+GET /auth/owner-only
+```
+
+Requires:
+
+- authenticated user
+- `owner` role
 
 ### Admin Protected Check
 
