@@ -10,3 +10,6 @@ uploads/*
 !uploads/profiles/
 !uploads/profiles/.gitkeep
 .DS_Store
+
+# Local practice files
+practice/

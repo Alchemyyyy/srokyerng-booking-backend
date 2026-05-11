@@ -16,6 +16,12 @@ router.get(
   authController.customerOnly
 );
 router.get(
+  "/owner-only",
+  authMiddleware,
+  roleMiddleware(ROLES.OWNER),
+  authController.ownerOnly
+);
+router.get(
   "/admin-only",
   authMiddleware,
   roleMiddleware(ROLES.ADMIN),

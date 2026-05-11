@@ -34,6 +34,29 @@ const findUserByEmail = async (email) => {
   return rows[0];
 };
 
+const findUserById = async (userId) => {
+  const [rows] = await pool.query(
+    `SELECT 
+      users.id,
+      users.full_name,
+      users.email,
+      users.phone,
+      users.profile_image_url,
+      users.last_login,
+      users.email_verified_at,
+      roles.role_name,
+      account_statuses.status_name
+     FROM users
+     JOIN roles ON users.role_id = roles.id
+     JOIN account_statuses ON users.status_id = account_statuses.id
+     WHERE users.id = ?
+     LIMIT 1`,
+    [userId]
+  );
+
+  return rows[0];
+};
+
 const createUser = async ({ roleId, statusId, fullName, email, phone, passwordHash }) => {
   const [result] = await pool.query(
     `INSERT INTO users 
@@ -55,6 +78,7 @@ module.exports = {
   findRoleByName,
   findStatusByName,
   findUserByEmail,
+  findUserById,
   createUser,
   updateLastLogin,
 };

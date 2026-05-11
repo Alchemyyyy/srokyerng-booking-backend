@@ -35,7 +35,9 @@ const login = asyncHandler(async (req, res) => {
 });
 
 const getMe = asyncHandler(async (req, res) => {
-  return successResponse(res, "Current user fetched successfully", req.user);
+  const user = await authService.getCurrentUser(req.user.id);
+
+  return successResponse(res, "Current user fetched successfully", user);
 });
 
 const adminOnly = asyncHandler(async (req, res) => {
@@ -52,10 +54,18 @@ const customerOnly = asyncHandler(async (req, res) => {
   });
 });
 
+const ownerOnly = asyncHandler(async (req, res) => {
+  return successResponse(res, "Owner access granted", {
+    id: req.user.id,
+    role: req.user.role,
+  });
+});
+
 module.exports = {
   register,
   login,
   getMe,
   adminOnly,
   customerOnly,
+  ownerOnly,
 };

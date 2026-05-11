@@ -1,59 +1,73 @@
+const Joi = require("joi");
 const ROLES = require("../../constants/roles");
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const validationOptions = {
+  abortEarly: false,
+  stripUnknown: true,
+};
+
+const registerSchema = Joi.object({
+  full_name: Joi.string().trim().required().messages({
+    "any.required": "Full name is required",
+    "string.empty": "Full name is required",
+  }),
+  email: Joi.string().trim().lowercase().email().required().messages({
+    "any.required": "Email is required",
+    "string.empty": "Email is required",
+    "string.email": "Email format is invalid",
+  }),
+  password: Joi.string().min(8).required().messages({
+    "any.required": "Password is required",
+    "string.empty": "Password is required",
+    "string.min": "Password must be at least 8 characters",
+  }),
+  phone: Joi.string().trim().allow("", null).optional(),
+  role: Joi.string()
+    .trim()
+    .lowercase()
+    .valid(ROLES.CUSTOMER, ROLES.OWNER)
+    .required()
+    .messages({
+      "any.required": "Role is required",
+      "string.empty": "Role is required",
+      "any.only": "Role must be customer or owner",
+    }),
+});
+
+const loginSchema = Joi.object({
+  email: Joi.string().trim().lowercase().email().required().messages({
+    "any.required": "Email is required",
+    "string.empty": "Email is required",
+    "string.email": "Email format is invalid",
+  }),
+  password: Joi.string().required().messages({
+    "any.required": "Password is required",
+    "string.empty": "Password is required",
+  }),
+});
+
+const formatErrors = (error) => {
+  return error ? error.details.map((detail) => detail.message) : [];
+};
 
 const normalizeRegisterBody = (body = {}) => {
-  return {
-    ...body,
-    full_name:
-      typeof body.full_name === "string" ? body.full_name.trim() : body.full_name,
-    email: typeof body.email === "string" ? body.email.trim().toLowerCase() : body.email,
-    phone: typeof body.phone === "string" ? body.phone.trim() : body.phone,
-    role: typeof body.role === "string" ? body.role.trim().toLowerCase() : body.role,
-  };
+  const { value } = registerSchema.validate(body, validationOptions);
+  return value;
 };
 
 const normalizeLoginBody = (body = {}) => {
-  return {
-    ...body,
-    email: typeof body.email === "string" ? body.email.trim().toLowerCase() : body.email,
-  };
+  const { value } = loginSchema.validate(body, validationOptions);
+  return value;
 };
 
 const validateRegister = (body) => {
-  const errors = [];
-
-  if (!body.full_name) errors.push("Full name is required");
-  if (!body.email) errors.push("Email is required");
-  if (!body.password) errors.push("Password is required");
-  if (!body.role) errors.push("Role is required");
-
-  if (body.email && !EMAIL_REGEX.test(body.email)) {
-    errors.push("Email format is invalid");
-  }
-
-  if (body.password && body.password.length < 8) {
-    errors.push("Password must be at least 8 characters");
-  }
-
-  const allowedRoles = [ROLES.CUSTOMER, ROLES.OWNER];
-  if (body.role && !allowedRoles.includes(body.role)) {
-    errors.push("Role must be customer or owner");
-  }
-
-  return errors;
+  const { error } = registerSchema.validate(body, validationOptions);
+  return formatErrors(error);
 };
 
 const validateLogin = (body) => {
-  const errors = [];
-
-  if (!body.email) errors.push("Email is required");
-  if (!body.password) errors.push("Password is required");
-  if (body.email && !EMAIL_REGEX.test(body.email)) {
-    errors.push("Email format is invalid");
-  }
-
-  return errors;
+  const { error } = loginSchema.validate(body, validationOptions);
+  return formatErrors(error);
 };
 
 module.exports = {
