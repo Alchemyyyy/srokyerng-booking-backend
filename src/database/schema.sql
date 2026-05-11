@@ -81,6 +81,8 @@ CREATE TABLE properties (
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+
 
     CONSTRAINT fk_properties_owner
         FOREIGN KEY (owner_id) REFERENCES users(id),
