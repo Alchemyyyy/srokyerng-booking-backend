@@ -52,6 +52,10 @@ const update = asyncHandler(async (req, res) => {
   return successResponse(res, result.message, result.data, result.status);
 });
 
+const uploadPropertyImage = asyncHandler(async (req, res) => {
+  console.log(req.files);
+});
+
 module.exports = {
   getAll,
   getDetail,
@@ -59,4 +63,5 @@ module.exports = {
   getMyProperty,
   getMyPropertyById,
   update,
+  uploadPropertyImage,
 };
