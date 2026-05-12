@@ -1,100 +1,104 @@
-/**
- * Validates reservation creation request body
- * @param {Object} body - Request body object
- * @param {number} body.room_id - ID of the room to book
- * @param {string} body.check_in_date - Check-in date (YYYY-MM-DD)
- * @param {string} body.check_out_date - Check-out date (YYYY-MM-DD)
- * @param {number} body.total_guests - Number of guests
- * @param {string} [body.special_request] - Optional special requests
- * @returns {string[]} Array of validation error messages (empty if valid)
- */
-const validateCreateReservation = (body) => {
+// src/modules/reservations/reservation.validation.js
+const Joi = require("joi");
+const { RESERVATION_STATUS } = require("../../constants/reservation");
+
+const dateSchema = Joi.date().iso();
+
+const createReservationSchema = Joi.object({
+  room_id: Joi.number().integer().positive().required(),
+  check_in_date: Joi.date().iso().greater("now").required(),
+  check_out_date: Joi.date().iso().greater(Joi.ref("check_in_date")).required(),
+  total_guests: Joi.number().integer().min(1).max(20).required(),
+  special_request: Joi.string().max(1000).optional().allow("", null),
+});
+
+const validateCreateReservation = (data) => {
+  const { error, value } = createReservationSchema.validate(data, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+
+  if (error) {
+    const errors = error.details.map((detail) => detail.message);
+    return { errors, value: null };
+  }
+
+  return { errors: null, value };
+};
+
+const validateStatusUpdate = (status) => {
+  const allowedStatuses = Object.values(RESERVATION_STATUS);
+  if (!allowedStatuses.includes(status)) {
+    return { error: `Invalid status. Allowed values: ${allowedStatuses.join(", ")}` };
+  }
+  return { error: null };
+};
+
+const validateCancelReservation = (reservation, currentUserRole) => {
   const errors = [];
 
-  // Required field validation
-  if (!body.room_id) errors.push("Room ID is required");
-  if (!body.check_in_date) errors.push("Check-in date is required");
-  if (!body.check_out_date) errors.push("Check-out date is required");
-  if (!body.total_guests) errors.push("Total guests is required");
-
-  // Type validation
-  if (body.room_id && isNaN(parseInt(body.room_id))) {
-    errors.push("Room ID must be a number");
+  // Check if reservation is already cancelled or completed
+  if (reservation.reservation_status === RESERVATION_STATUS.CANCELLED) {
+    errors.push("Reservation is already cancelled");
   }
 
-  // Guest count validation
-  if (
-    body.total_guests &&
-    (isNaN(parseInt(body.total_guests)) || parseInt(body.total_guests) <= 0)
-  ) {
-    errors.push("Total guests must be a positive number");
+  if (reservation.reservation_status === RESERVATION_STATUS.COMPLETED) {
+    errors.push("Completed reservations cannot be cancelled");
   }
 
-  // Date validation
-  if (body.check_in_date && body.check_out_date) {
-    const checkIn = new Date(body.check_in_date);
-    const checkOut = new Date(body.check_out_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  // Check if check-in date is in the past
+  const checkInDate = new Date(reservation.check_in_date);
+  const now = new Date();
 
-    // Date format validation
-    if (isNaN(checkIn.getTime())) {
-      errors.push("Invalid check-in date format. Use YYYY-MM-DD");
-    }
-    if (isNaN(checkOut.getTime())) {
-      errors.push("Invalid check-out date format. Use YYYY-MM-DD");
-    }
+  if (currentUserRole === "customer" && checkInDate <= now) {
+    errors.push("Cannot cancel reservation after check-in date has passed");
+  }
 
-    // Business rule validations
-    if (checkIn < today) {
-      errors.push("Check-in date cannot be in the past");
-    }
-    if (checkIn >= checkOut) {
-      errors.push("Check-in date must be before check-out date");
-    }
+  // Check if status allows cancellation
+  const cancellableStatuses = ["pending", "confirmed"];
+  if (!cancellableStatuses.includes(reservation.reservation_status)) {
+    errors.push(
+      `Cannot cancel reservation with status: ${reservation.reservation_status}`
+    );
   }
 
   return errors;
 };
 
-/**
- * Validates reservation status update request
- * @param {Object} body - Request body object
- * @param {string} body.status - New status value
- * @param {string[]} allowedStatuses - Array of allowed status values
- * @returns {string[]} Array of validation error messages
- */
-const validateUpdateStatus = (body, allowedStatuses = []) => {
-  const errors = [];
-
-  if (!body.status) {
-    errors.push("Status is required");
-  }
-
-  if (body.status && !allowedStatuses.includes(body.status)) {
-    errors.push(`Status must be one of: ${allowedStatuses.join(", ")}`);
-  }
-
-  return errors;
-};
-
-/**
- * Normalizes and sanitizes reservation request body
- * @param {Object} body - Raw request body
- * @returns {Object} Sanitized request body with proper types
- */
-const normalizeReservationBody = (body = {}) => {
+const normalizeReservationData = (data) => {
   return {
-    room_id: body.room_id ? parseInt(body.room_id) : null,
-    check_in_date: body.check_in_date ? body.check_in_date.trim() : null,
-    check_out_date: body.check_out_date ? body.check_out_date.trim() : null,
-    total_guests: body.total_guests ? parseInt(body.total_guests) : null,
-    special_request: body.special_request ? body.special_request.trim() : null,
+    ...data,
+    check_in_date: data.check_in_date
+      ? new Date(data.check_in_date).toISOString().split("T")[0]
+      : null,
+    check_out_date: data.check_out_date
+      ? new Date(data.check_out_date).toISOString().split("T")[0]
+      : null,
+    special_request: data.special_request || null,
   };
+};
+
+const validateId = (id) => {
+  const parsedId = parseInt(id, 10);
+  if (isNaN(parsedId) || parsedId <= 0) {
+    throw new Error("Invalid ID parameter");
+  }
+  return parsedId;
+};
+
+const validateStatusFilter = (status) => {
+  const allowedStatuses = Object.values(RESERVATION_STATUS);
+  if (status && !allowedStatuses.includes(status)) {
+    return `Invalid status filter. Allowed: ${allowedStatuses.join(", ")}`;
+  }
+  return null;
 };
 
 module.exports = {
   validateCreateReservation,
-  validateUpdateStatus,
-  normalizeReservationBody,
+  validateStatusUpdate,
+  validateCancelReservation,
+  normalizeReservationData,
+  validateId,
+  validateStatusFilter,
 };

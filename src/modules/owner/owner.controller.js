@@ -1,5 +1,3 @@
-// =============================== [ Visal Start ] ==============================
-
 const reservationService = require("../reservations/reservation.service");
 const { successResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
@@ -104,5 +102,3 @@ module.exports = {
   getPayments,
   getReviews,
 };
-
-// =============================== [ Visal End ] ==============================
