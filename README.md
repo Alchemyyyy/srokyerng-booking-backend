@@ -105,8 +105,6 @@ npm start
 - `POST /auth/register`
 - `POST /auth/login`
 - `GET /auth/me` (requires `Authorization: Bearer <token>`)
-- `GET /auth/customer-only` (requires customer role)
-- `GET /auth/admin-only` (requires admin role)
 
 ## Response Shape
 

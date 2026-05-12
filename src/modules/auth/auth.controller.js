@@ -40,32 +40,8 @@ const getMe = asyncHandler(async (req, res) => {
   return successResponse(res, "Current user fetched successfully", user);
 });
 
-const adminOnly = asyncHandler(async (req, res) => {
-  return successResponse(res, "Admin access granted", {
-    id: req.user.id,
-    role: req.user.role,
-  });
-});
-
-const customerOnly = asyncHandler(async (req, res) => {
-  return successResponse(res, "Customer access granted", {
-    id: req.user.id,
-    role: req.user.role,
-  });
-});
-
-const ownerOnly = asyncHandler(async (req, res) => {
-  return successResponse(res, "Owner access granted", {
-    id: req.user.id,
-    role: req.user.role,
-  });
-});
-
 module.exports = {
   register,
   login,
   getMe,
-  adminOnly,
-  customerOnly,
-  ownerOnly,
 };

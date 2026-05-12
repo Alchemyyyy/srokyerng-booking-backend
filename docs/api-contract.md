@@ -126,36 +126,3 @@ Returns the current active user from the database:
   "email_verified_at": null
 }
 ```
-
-### Customer Protected Check
-
-```text
-GET /auth/customer-only
-```
-
-Requires:
-
-- authenticated user
-- `customer` role
-
-### Owner Protected Check
-
-```text
-GET /auth/owner-only
-```
-
-Requires:
-
-- authenticated user
-- `owner` role
-
-### Admin Protected Check
-
-```text
-GET /auth/admin-only
-```
-
-Requires:
-
-- authenticated user
-- `admin` role
