@@ -31,10 +31,21 @@ Required values:
 - `DB_NAME`
 - `JWT_SECRET`
 - `JWT_EXPIRES_IN`
+- `REFRESH_TOKEN_EXPIRES_DAYS`
+- `REFRESH_TOKEN_COOKIE_SECURE`
+- `REFRESH_TOKEN_COOKIE_SAME_SITE`
 - `FRONTEND_URL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `SMTP_FROM`
+- `SMTP_SECURE`
 - `ADMIN_FULL_NAME`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
+
+`SMTP_*` values are required for `POST /auth/forgot-password` to send real password reset email.
 
 ## Database
 
