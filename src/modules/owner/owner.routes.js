@@ -1,5 +1,3 @@
-// =============================== [ Visal Start ] ==============================
-
 const express = require("express");
 const ownerController = require("./owner.controller");
 const authMiddleware = require("../../middleware/auth.middleware");
@@ -18,5 +16,3 @@ router.get("/payments", ownerController.getPayments);
 router.get("/reviews", ownerController.getReviews);
 
 module.exports = router;
-
-// ============================== [ Visal End ] ==============================
