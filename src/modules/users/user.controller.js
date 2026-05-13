@@ -4,8 +4,12 @@ const asyncHandler = require("../../utils/asyncHandler");
 const {
   normalizeProfileBody,
   normalizePasswordBody,
+  normalizeListUsersQuery,
+  normalizeStatusBody,
   validateProfile,
   validatePassword,
+  validateListUsersQuery,
+  validateStatus,
 } = require("./user.validation");
 
 const getMe = asyncHandler(async (req, res) => {
@@ -40,8 +44,55 @@ const changePassword = asyncHandler(async (req, res) => {
   return successResponse(res, "Password changed successfully");
 });
 
+const getAll = asyncHandler(async (req, res) => {
+  const query = normalizeListUsersQuery(req.query);
+  const errors = validateListUsersQuery(query);
+
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  const result = await userService.listUsers(query);
+
+  return successResponse(res, "Users fetched successfully", result);
+});
+
+const getById = asyncHandler(async (req, res) => {
+  const userId = Number(req.params.id);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return errorResponse(res, "User ID must be a positive integer", 400);
+  }
+
+  const user = await userService.getUserById(userId);
+
+  return successResponse(res, "User fetched successfully", user);
+});
+
+const updateStatus = asyncHandler(async (req, res) => {
+  const payload = normalizeStatusBody(req.body);
+  const errors = validateStatus(payload);
+
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  const userId = Number(req.params.id);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return errorResponse(res, "User ID must be a positive integer", 400);
+  }
+
+  const user = await userService.updateUserStatus(req.user.id, userId, payload.status);
+
+  return successResponse(res, "User status updated successfully", user);
+});
+
 module.exports = {
   getMe,
   updateMe,
   changePassword,
+  getAll,
+  getById,
+  updateStatus,
 };

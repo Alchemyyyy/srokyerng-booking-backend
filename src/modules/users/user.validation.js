@@ -55,6 +55,27 @@ const passwordSchema = Joi.object({
   }),
 });
 
+const listUsersQuerySchema = Joi.object({
+  role: Joi.string().trim().lowercase().valid("customer", "owner", "admin").optional(),
+  status: Joi.string().trim().lowercase().valid("active", "suspended").optional(),
+  search: Joi.string().trim().allow("").optional(),
+  page: Joi.number().integer().min(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).optional(),
+});
+
+const statusSchema = Joi.object({
+  status: Joi.string()
+    .trim()
+    .lowercase()
+    .valid("active", "suspended")
+    .required()
+    .messages({
+      "any.required": "Status is required",
+      "string.empty": "Status is required",
+      "any.only": "Status must be active or suspended",
+    }),
+});
+
 const formatErrors = (error) => {
   return error ? error.details.map((detail) => detail.message) : [];
 };
@@ -83,6 +104,30 @@ const normalizePasswordBody = (body = {}) => {
   return value;
 };
 
+const normalizeListUsersQuery = (query = {}) => {
+  const { value } = listUsersQuerySchema.validate(
+    {
+      ...query,
+      page: query.page ? Number(query.page) : undefined,
+      limit: query.limit ? Number(query.limit) : undefined,
+    },
+    validationOptions
+  );
+
+  return {
+    role: value.role,
+    status: value.status,
+    search: value.search || undefined,
+    page: value.page || 1,
+    limit: value.limit || 20,
+  };
+};
+
+const normalizeStatusBody = (body = {}) => {
+  const { value } = statusSchema.validate(body, validationOptions);
+  return value;
+};
+
 const validateProfile = (body) => {
   const { error } = profileSchema.validate(body, validationOptions);
   return formatErrors(error);
@@ -93,9 +138,23 @@ const validatePassword = (body) => {
   return formatErrors(error);
 };
 
+const validateListUsersQuery = (query) => {
+  const { error } = listUsersQuerySchema.validate(query, validationOptions);
+  return formatErrors(error);
+};
+
+const validateStatus = (body) => {
+  const { error } = statusSchema.validate(body, validationOptions);
+  return formatErrors(error);
+};
+
 module.exports = {
   normalizeProfileBody,
   normalizePasswordBody,
+  normalizeListUsersQuery,
+  normalizeStatusBody,
   validateProfile,
   validatePassword,
+  validateListUsersQuery,
+  validateStatus,
 };

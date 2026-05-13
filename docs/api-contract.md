@@ -231,6 +231,82 @@ Reset tokens expire after 1 hour and can be used once.
 
 All user endpoints require authentication.
 
+### List Users
+
+```text
+GET /users
+```
+
+Requires `admin` role.
+
+Query parameters:
+
+- `role`: `customer`, `owner`, or `admin`
+- `status`: `active` or `suspended`
+- `search`: matches full name, email, or phone
+- `page`: defaults to `1`
+- `limit`: defaults to `20`, max `100`
+
+Returns:
+
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "full_name": "Customer User",
+      "email": "customer@example.com",
+      "phone": "012345678",
+      "role": "customer",
+      "status": "active",
+      "profile_image_url": null,
+      "gender": null,
+      "date_of_birth": null,
+      "address": null,
+      "last_login": "2026-05-10T10:00:00.000Z",
+      "email_verified_at": null,
+      "created_at": "2026-05-01T10:00:00.000Z",
+      "updated_at": "2026-05-01T10:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+### User Detail
+
+```text
+GET /users/:id
+```
+
+Requires `admin` role.
+
+### Update User Status
+
+```text
+PATCH /users/:id/status
+```
+
+Requires `admin` role.
+
+Body:
+
+```json
+{
+  "status": "suspended"
+}
+```
+
+Allowed status values:
+
+- `active`
+- `suspended`
+
 ### My Profile
 
 ```text

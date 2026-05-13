@@ -112,6 +112,30 @@ test("change password returns 400 for invalid payload", async () => {
   assert.equal(res.payload.message, "Validation failed");
 });
 
+test("admin user status update returns 400 for invalid status", async () => {
+  const req = { user: { id: 1, role: "admin" }, params: { id: "2" }, body: {} };
+  const res = createRes();
+  const next = () => {};
+
+  await userController.updateStatus(req, res, next);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.payload.success, false);
+  assert.equal(res.payload.message, "Validation failed");
+});
+
+test("admin user detail returns 400 for invalid user id", async () => {
+  const req = { params: { id: "abc" } };
+  const res = createRes();
+  const next = () => {};
+
+  await userController.getById(req, res, next);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.payload.success, false);
+  assert.equal(res.payload.message, "User ID must be a positive integer");
+});
+
 test("user service updates profile fields and allows clearing optional values", async () => {
   const calls = {};
   let readCount = 0;
@@ -161,6 +185,118 @@ test("user service updates profile fields and allows clearing optional values", 
     assert.equal(user.phone, null);
     assert.equal(user.address, "New address");
     assert.equal(Object.hasOwn(user, "password_hash"), false);
+  } finally {
+    restore();
+  }
+});
+
+test("user service lists users with pagination metadata", async () => {
+  const calls = {};
+  const { userService, restore } = loadUserService({
+    userModel: {
+      findUsers: async (query) => {
+        calls.findUsers = query;
+        return [
+          createUserRow({
+            id: 2,
+            role_name: "owner",
+            created_at: "2026-05-13T01:00:00.000Z",
+            updated_at: "2026-05-13T01:00:00.000Z",
+          }),
+        ];
+      },
+      countUsers: async (query) => {
+        calls.countUsers = query;
+        return 21;
+      },
+    },
+    hashPassword: async () => "new-hash",
+    comparePassword: async () => true,
+  });
+
+  try {
+    const result = await userService.listUsers({
+      role: "owner",
+      status: "active",
+      search: "owner",
+      page: 2,
+      limit: 10,
+    });
+
+    assert.deepEqual(calls.findUsers, {
+      role: "owner",
+      status: "active",
+      search: "owner",
+      limit: 10,
+      offset: 10,
+    });
+    assert.deepEqual(calls.countUsers, {
+      role: "owner",
+      status: "active",
+      search: "owner",
+    });
+    assert.equal(result.users.length, 1);
+    assert.equal(result.users[0].id, 2);
+    assert.equal(result.users[0].role, "owner");
+    assert.equal(result.pagination.total, 21);
+    assert.equal(result.pagination.total_pages, 3);
+    assert.equal(Object.hasOwn(result.users[0], "password_hash"), false);
+  } finally {
+    restore();
+  }
+});
+
+test("user service updates user status", async () => {
+  const calls = {};
+  let readCount = 0;
+  const { userService, restore } = loadUserService({
+    userModel: {
+      findUserById: async (userId) => {
+        readCount += 1;
+        return readCount === 1
+          ? createUserRow({ id: userId, status_name: "active" })
+          : createUserRow({ id: userId, status_name: "suspended" });
+      },
+      findStatusByName: async (status) => {
+        calls.findStatusByName = status;
+        return { id: 2, status_name: status };
+      },
+      updateStatus: async (userId, statusId) => {
+        calls.updateStatus = { userId, statusId };
+      },
+    },
+    hashPassword: async () => "new-hash",
+    comparePassword: async () => true,
+  });
+
+  try {
+    const user = await userService.updateUserStatus(1, 2, "suspended");
+
+    assert.equal(calls.findStatusByName, "suspended");
+    assert.deepEqual(calls.updateStatus, {
+      userId: 2,
+      statusId: 2,
+    });
+    assert.equal(user.id, 2);
+    assert.equal(user.status, "suspended");
+  } finally {
+    restore();
+  }
+});
+
+test("user service prevents admins from suspending their own account", async () => {
+  const { userService, restore } = loadUserService({
+    userModel: {},
+    hashPassword: async () => "new-hash",
+    comparePassword: async () => true,
+  });
+
+  try {
+    await assert.rejects(userService.updateUserStatus(1, 1, "suspended"), (error) => {
+      assert.equal(error.message, "Admins cannot suspend their own account");
+      assert.equal(error.statusCode, 400);
+      return true;
+    });
   } finally {
     restore();
   }

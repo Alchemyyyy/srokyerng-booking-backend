@@ -118,6 +118,9 @@ npm start
 - `POST /auth/reset-password`
 - `GET /auth/me` (requires `Authorization: Bearer <token>`)
 - `POST /auth/logout` (requires `Authorization: Bearer <token>`)
+- `GET /users` (requires `admin`)
+- `GET /users/:id` (requires `admin`)
+- `PATCH /users/:id/status` (requires `admin`)
 - `GET /users/me` (requires `Authorization: Bearer <token>`)
 - `PATCH /users/me` (requires `Authorization: Bearer <token>`)
 - `PATCH /users/me/password` (requires `Authorization: Bearer <token>`)
