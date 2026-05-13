@@ -2,6 +2,7 @@
 const reservationService = require("./reservation.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
+const { validateAvailabilityQuery } = require("./reservation.validation");
 const {
   validateCreateReservation,
   normalizeReservationData,
@@ -142,7 +143,24 @@ const updateReservationStatus = asyncHandler(async (req, res) => {
   return successResponse(res, "Reservation status updated successfully", reservation);
 });
 
+const checkAvailability = asyncHandler(async (req, res) => {
+  const { error, value } = validateAvailabilityQuery(req.query);
+
+  if (error) {
+    return errorResponse(res, error, 400);
+  }
+
+  const availability = await reservationService.checkAvailability(
+    value.roomId,
+    value.check_in_date,
+    value.check_out_date
+  );
+
+  return successResponse(res, "Availability checked", availability);
+});
+
 module.exports = {
+  checkAvailability,
   createReservation,
   getMyReservations,
   getReservationById,

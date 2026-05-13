@@ -85,7 +85,7 @@ const createReservation = async (customerId, reservationData) => {
   const reservation = await reservationModel.findReservationById(reservationId);
 
   return reservation;
-};;;
+};
 
 const getCustomerReservations = async (customerId, filters = {}) => {
   const reservations = await reservationModel.findReservationsByCustomer(
@@ -240,11 +240,20 @@ const updateReservationStatus = async (reservationId, status, adminId, reason = 
 };
 
 const checkAvailability = async (roomId, checkInDate, checkOutDate) => {
+  const room = await reservationModel.findRoomById(roomId);
+
+  if (!room) {
+    const error = new Error("Room not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
   const availability = await reservationModel.checkAvailability(
     roomId,
     checkInDate,
     checkOutDate
   );
+
   return availability;
 };
 

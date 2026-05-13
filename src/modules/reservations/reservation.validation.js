@@ -94,6 +94,39 @@ const validateStatusFilter = (status) => {
   return null;
 };
 
+const validateAvailabilityQuery = (query) => {
+  const { room_id, check_in_date, check_out_date } = query;
+
+  if (!room_id || !check_in_date || !check_out_date) {
+    return { error: "room_id, check_in_date, check_out_date are required" };
+  }
+
+  const roomId = parseInt(room_id, 10);
+  if (isNaN(roomId) || roomId <= 0) {
+    return { error: "Invalid ID parameter" };
+  }
+
+  const checkIn = new Date(check_in_date);
+  const checkOut = new Date(check_out_date);
+
+  if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+    return { error: "Invalid date format" };
+  }
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  if (checkIn < now) {
+    return { error: "Check-in date cannot be in the past" };
+  }
+
+  if (checkOut <= checkIn) {
+    return { error: "Check-out date must be after check-in date" };
+  }
+
+  return { error: null, value: { roomId, check_in_date, check_out_date } };
+};
+
 module.exports = {
   validateCreateReservation,
   validateStatusUpdate,
@@ -101,4 +134,5 @@ module.exports = {
   normalizeReservationData,
   validateId,
   validateStatusFilter,
+  validateAvailabilityQuery,
 };
