@@ -4,8 +4,8 @@ Backend API for an accommodation booking platform (customers, owners, admins).
 
 ## Current Scope
 
-- Implemented: `auth` module (`register`, `login`, auth middleware, role middleware)
-- Scaffolded only: `users`, `properties`, `rooms`, `reservations`, `payments`, `reviews`, `amenities`, `admin`
+- Implemented: `auth` module (`register`, `login`, auth middleware, role middleware), `users` self-profile endpoints
+- Scaffolded or partial: `properties`, `rooms`, `reservations`, `payments`, `reviews`, `amenities`, `admin`
 
 ## Tech Stack
 
@@ -58,7 +58,16 @@ cp .env.example .env
 - `DB_NAME`
 - `JWT_SECRET`
 - `JWT_EXPIRES_IN`
+- `REFRESH_TOKEN_EXPIRES_DAYS`
+- `REFRESH_TOKEN_COOKIE_SECURE`
+- `REFRESH_TOKEN_COOKIE_SAME_SITE`
 - `FRONTEND_URL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `SMTP_FROM`
+- `SMTP_SECURE`
 - `ADMIN_FULL_NAME`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
@@ -104,7 +113,14 @@ npm start
 - `GET /health` (under `/api`)
 - `POST /auth/register`
 - `POST /auth/login`
+- `POST /auth/refresh-token`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
 - `GET /auth/me` (requires `Authorization: Bearer <token>`)
+- `POST /auth/logout` (requires `Authorization: Bearer <token>`)
+- `GET /users/me` (requires `Authorization: Bearer <token>`)
+- `PATCH /users/me` (requires `Authorization: Bearer <token>`)
+- `PATCH /users/me/password` (requires `Authorization: Bearer <token>`)
 
 ## Response Shape
 
@@ -161,6 +177,15 @@ npm run format:check
 - register validation failure path (`400`)
 - login validation failure path (`400`)
 - protected route without token (`401`)
+- auth service register/login/current-user behavior
+- forgot/reset password validation and service behavior
+
+`test/users.smoke.test.js` currently verifies:
+
+- profile update validation failure path (`400`)
+- password change validation failure path (`400`)
+- user service profile update behavior
+- user service password change behavior
 
 ## Team Notes
 

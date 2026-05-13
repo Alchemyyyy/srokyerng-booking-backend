@@ -25,8 +25,17 @@ const env = {
   DB_PASSWORD: process.env.DB_PASSWORD || "",
   DB_NAME: getRequired("DB_NAME"),
   JWT_SECRET: getRequired("JWT_SECRET"),
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "15m",
+  REFRESH_TOKEN_EXPIRES_DAYS: parseNumber(process.env.REFRESH_TOKEN_EXPIRES_DAYS, 30),
+  REFRESH_TOKEN_COOKIE_SECURE: process.env.REFRESH_TOKEN_COOKIE_SECURE === "true",
+  REFRESH_TOKEN_COOKIE_SAME_SITE: process.env.REFRESH_TOKEN_COOKIE_SAME_SITE || "lax",
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
+  SMTP_HOST: process.env.SMTP_HOST || "",
+  SMTP_PORT: parseNumber(process.env.SMTP_PORT, 587),
+  SMTP_USER: process.env.SMTP_USER || "",
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD || "",
+  SMTP_FROM: process.env.SMTP_FROM || "",
+  SMTP_SECURE: process.env.SMTP_SECURE === "true",
 };
 
 module.exports = env;
