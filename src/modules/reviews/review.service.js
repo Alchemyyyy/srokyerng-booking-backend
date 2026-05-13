@@ -1,4 +1,5 @@
 const db = require("../../config/db");
+const reviewModel = require("./review.model");
 
 const createReview = async (userId, reservationId, body) => {
 
@@ -26,7 +27,7 @@ const createReview = async (userId, reservationId, body) => {
     }
 
     // 3. Completed check
-    if (reservation.status !== "completed") {
+    if (reservation.reservation_status !== "completed") {
         throw new Error(
             "Reservation must be completed before review"
         );
@@ -48,40 +49,107 @@ const createReview = async (userId, reservationId, body) => {
         );
     }
 
-    // 5. Insert review
-    const [result] = await db.query(
-        `
-        INSERT INTO reviews (
-            reservation_id,
-            property_id,
-            customer_id,
-            rating,
-            comment
-        )
-        VALUES (?, ?, ?, ?, ?)
-        `,
-        [
-            reservation.id,
-            reservation.property_id,
-            userId,
-            rating,
-            comment
-        ]
+    // 5. Find room
+    const room = await reviewModel.getRoomById(
+        reservation.room_id
     );
 
-    // 6. Return inserted review
-    const [reviews] = await db.query(
-        `
-        SELECT *
-        FROM reviews
-        WHERE id = ?
-        `,
-        [result.insertId]
+    // 6. Insert review
+    const insertId = await reviewModel.insertReview(
+        reservation.id,
+        room.property_id,
+        userId,
+        rating,
+        comment
     );
 
-    return reviews[0];
+    // 7. Get inserted review
+    const review = await reviewModel.getReviewById(
+        insertId
+    );
+
+    return review;
+};
+
+const getPropertyReviews = async (propertyId) => {
+
+    return await reviewModel.getPropertyReviews(
+        propertyId
+    );
+
+};
+const getMyReviews = async (userId) => {
+
+    return await reviewModel.getMyReviews(userId);
+
+};
+const updateReview = async (
+    userId,
+    reviewId,
+    body
+) => {
+
+    const review =
+        await reviewModel.getReviewById(reviewId);
+
+    if (!review) {
+        throw new Error("Review not found");
+    }
+
+    // ownership check
+    if (review.customer_id !== userId) {
+        throw new Error("Forbidden");
+    }
+
+    await reviewModel.updateReview(
+        reviewId,
+        body
+    );
+
+    return await reviewModel.getReviewById(
+        reviewId
+    );
+
+};
+const deleteReview = async (
+    userId,
+    role,
+    reviewId
+) => {
+
+    const review =
+        await reviewModel.getReviewById(reviewId);
+
+    if (!review) {
+        throw new Error("Review not found");
+    }
+
+    const isOwner =
+        review.customer_id === userId;
+
+    const isAdmin =
+        role === "admin";
+
+    if (!isOwner && !isAdmin) {
+        throw new Error("Forbidden");
+    }
+
+    await reviewModel.deleteReview(reviewId);
+
+};
+const getAllReviews = async () => {
+
+    return await reviewModel.getAllReviews();
+
 };
 
 module.exports = {
-    createReview
+    createReview,
+    getPropertyReviews,
+    getMyReviews,
+    updateReview,
+    deleteReview,
+    updateReview,
+    getAllReviews
+
 };
