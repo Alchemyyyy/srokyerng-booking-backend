@@ -11,14 +11,4 @@ router.get(
     amenityController.getAllAmenities
 );
 
-router.get(
-    "/properties/:propertyId/amenities",
-    amenityController.getPropertyAmenities
-);
-
-router.put(
-    "/properties/:propertyId/amenities",
-    amenityController.updatePropertyAmenities
-);
-
 module.exports = router;

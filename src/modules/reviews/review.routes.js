@@ -2,31 +2,29 @@ const express = require("express");
 const router = express.Router();
 
 const reviewController = require("./review.controller");
-const amenityController = require("../amenities/amenity.controller");
 
-router.post(
-    "/reservations/:reservationId/reviews",
-    reviewController.createReview
-);
-router.get(
-    "/properties/:propertyId/reviews",
-    reviewController.getPropertyReviews
-);
+const authMiddleware = require("../../middleware/auth.middleware");
+const roleMiddleware = require("../../middleware/role.middleware");
+
+const ROLES = require("../../constants/roles");
+
+router.use(authMiddleware);
+
 router.get(
     "/my",
+    roleMiddleware(ROLES.CUSTOMER),
     reviewController.getMyReviews
 );
+
 router.patch(
     "/:id",
+    roleMiddleware(ROLES.CUSTOMER),
     reviewController.updateReview
 );
+
 router.delete(
     "/:id",
     reviewController.deleteReview
-);
-router.get(
-    "/admin/reviews",
-    reviewController.getAllReviews
 );
 
 module.exports = router;

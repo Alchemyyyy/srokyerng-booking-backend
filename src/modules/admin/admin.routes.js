@@ -1,6 +1,7 @@
 const express = require("express");
 const reservationController = require("../reservations/reservation.controller");
 const adminController = require("./admin.controller");
+const reviewController = require("../reviews/review.controller");
 const authMiddleware = require("../../middleware/auth.middleware");
 const roleMiddleware = require("../../middleware/role.middleware");
 const ROLES = require("../../constants/roles");
@@ -15,5 +16,5 @@ router.patch("/reservations/:id/status", reservationController.updateReservation
 
 router.get("/properties", adminController.getAll);
 router.patch("/properties/:id/status", adminController.updateStatusProperty);
-
+router.get("/reviews", reviewController.getAllReviews);
 module.exports = router;

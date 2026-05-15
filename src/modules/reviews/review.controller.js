@@ -1,147 +1,159 @@
 const reviewService = require("./review.service");
-const { createReviewSchema, updateReviewSchema } = require("./review.validation");
 
-const createReview = async (req, res) => {
-  try {
-    // const userId = req.user.id;
-    const userId = 1;
+const {
+  createReviewSchema,
+  updateReviewSchema
+} = require("./review.validation");
 
-    const reservationId = req.params.reservationId;
+const asyncHandler = require("../../utils/asyncHandler");
+
+const {
+  successResponse,
+  errorResponse
+} = require("../../utils/apiResponse");
+
+const createReview = asyncHandler(
+  async (req, res) => {
+
+    const userId = req.user.id;
+
+    const reservationId =
+      req.params.reservationId;
 
     // validation
-    const { error } = createReviewSchema.validate(req.body);
+    const { error } =
+      createReviewSchema.validate(
+        req.body
+      );
 
     if (error) {
-      return res.status(400).json({
-        message: error.details[0].message,
-      });
+      return errorResponse(
+        res,
+        error.details[0].message,
+        null,
+        400
+      );
     }
 
-    const result = await reviewService.createReview(userId, reservationId, req.body);
+    const result =
+      await reviewService.createReview(
+        userId,
+        reservationId,
+        req.body
+      );
 
-    res.status(201).json({
-      message: "Review created successfully",
-      data: result,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
-  }
-};
-const getPropertyReviews = async (req, res) => {
-  try {
-    const propertyId = req.params.propertyId;
+    return successResponse(
+      res,
+      "Review created successfully",
+      result,
+      201
+    );
 
-    const reviews = await reviewService.getPropertyReviews(propertyId);
+});
 
-    res.status(200).json({
-      message: "Property reviews fetched successfully",
-      data: reviews,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
-  }
-};
-const getMyReviews = async (req, res) => {
-  try {
-    // const userId = req.user.id;
-    const userId = 1;
+const getPropertyReviews = asyncHandler(
+  async (req, res) => {
 
-    const reviews = await reviewService.getMyReviews(userId);
+    const propertyId =
+      req.params.propertyId;
 
-    res.status(200).json({
-      message: "My reviews fetched successfully",
-      data: reviews,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
-  }
-};
+    const reviews =
+      await reviewService.getPropertyReviews(
+        propertyId
+      );
 
-const updateReview = async (req, res) => {
-  try {
-    // const userId = req.user.id;
-    const userId = 1;
+    return successResponse(
+      res,
+      "Property reviews fetched successfully",
+      reviews
+    );
+
+});
+
+const getMyReviews = asyncHandler(
+  async (req, res) => {
+
+    const userId = req.user.id;
+
+    const reviews =
+      await reviewService.getMyReviews(
+        userId
+      );
+
+    return successResponse(
+      res,
+      "My reviews fetched successfully",
+      reviews
+    );
+
+});
+
+const updateReview = asyncHandler(
+  async (req, res) => {
+
+    const userId = req.user.id;
 
     const reviewId = req.params.id;
 
-    const { error } = updateReviewSchema.validate(req.body);
+    const { error } =
+      updateReviewSchema.validate(
+        req.body
+      );
 
     if (error) {
-      return res.status(400).json({
-        message: error.details[0].message,
-      });
+      return errorResponse(
+        res,
+        error.details[0].message,
+        null,
+        400
+      );
     }
 
-    const review = await reviewService.updateReview(userId, reviewId, req.body);
+    const review =
+      await reviewService.updateReview(
+        userId,
+        reviewId,
+        req.body
+      );
 
-    res.status(200).json({
-      message: "Review updated successfully",
-      data: review,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
-  }
-};
-const deleteReview = async (req, res) => {
+    return successResponse(
+      res,
+      "Review updated successfully",
+      review
+    );
 
-    try {
+});
 
-        // const userId = req.user.id;
-        const userId = 1;
+const deleteReview = asyncHandler(
+  async (req, res) => {
 
-        // const role = req.user.role;
-        const role = "customer";
+    const reviewId = req.params.id;
 
-        const reviewId = req.params.id;
+    await reviewService.deleteReview(
+      reviewId,
+      req.user
+    );
 
-        await reviewService.deleteReview(
-            userId,
-            role,
-            reviewId
-        );
+    return successResponse(
+      res,
+      "Review deleted successfully"
+    );
 
-        res.status(200).json({
-            message: "Review deleted successfully"
-        });
+});
 
-    } catch (error) {
+const getAllReviews = asyncHandler(
+  async (req, res) => {
 
-        res.status(400).json({
-            message: error.message
-        });
+    const reviews =
+      await reviewService.getAllReviews();
 
-    }
+    return successResponse(
+      res,
+      "All reviews fetched successfully",
+      reviews
+    );
 
-};
-const getAllReviews = async (req, res) => {
-
-    try {
-
-        const reviews =
-            await reviewService.getAllReviews();
-
-        res.status(200).json({
-            message: "All reviews fetched successfully",
-            data: reviews
-        });
-
-    } catch (error) {
-
-        res.status(400).json({
-            message: error.message
-        });
-
-    }
-
-};
+});
 
 module.exports = {
   createReview,
@@ -149,6 +161,5 @@ module.exports = {
   getMyReviews,
   updateReview,
   deleteReview,
-  updateReview,
   getAllReviews
 };

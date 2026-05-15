@@ -5,7 +5,7 @@ const env = require("./config/env");
 
 const routes = require("./routes");
 const errorMiddleware = require("./middleware/error.middleware");
-const amenityRoutes = require("./modules/amenities/amenity.routes");
+
 
 const app = express();
   
@@ -30,6 +30,5 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api", routes);
-app.use("/api/amenities", amenityRoutes);
 app.use(errorMiddleware);
 module.exports = app;

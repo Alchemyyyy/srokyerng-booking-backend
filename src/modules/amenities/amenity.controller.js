@@ -72,8 +72,8 @@ const updatePropertyAmenities = async (
 
     try {
 
-        // const userId = req.user.id;
-        const userId = 1;
+        const userId = req.user.id;
+       
 
         const propertyId =
             req.params.propertyId;

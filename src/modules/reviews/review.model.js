@@ -152,9 +152,44 @@ const getAllReviews = async () => {
     return reviews;
 
 };
+const getReservationById = async (
+    reservationId
+) => {
+
+    const [reservations] = await db.query(
+        `
+        SELECT *
+        FROM reservations
+        WHERE id = ?
+        `,
+        [reservationId]
+    );
+
+    return reservations[0];
+
+};
+
+const getReviewByReservationId = async (
+    reservationId
+) => {
+
+    const [reviews] = await db.query(
+        `
+        SELECT *
+        FROM reviews
+        WHERE reservation_id = ?
+        `,
+        [reservationId]
+    );
+
+    return reviews[0];
+
+};
 
 module.exports = {
     getRoomById,
+    getReservationById,
+    getReviewByReservationId,
     insertReview,
     getReviewById,
     getPropertyReviews,

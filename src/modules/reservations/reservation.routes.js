@@ -1,6 +1,7 @@
 // src/modules/reservations/reservation.routes.js
 const express = require("express");
 const reservationController = require("./reservation.controller");
+const reviewController = require("../reviews/review.controller");
 const authMiddleware = require("../../middleware/auth.middleware");
 const roleMiddleware = require("../../middleware/role.middleware");
 const ROLES = require("../../constants/roles");
@@ -15,6 +16,11 @@ router.use(authMiddleware);
 
 // Customer routes
 router.post("/", roleMiddleware(ROLES.CUSTOMER), reservationController.createReservation);
+router.post(
+  "/:reservationId/reviews",
+  roleMiddleware(ROLES.CUSTOMER),
+  reviewController.createReview
+);
 router.get(
   "/my",
   roleMiddleware(ROLES.CUSTOMER),
