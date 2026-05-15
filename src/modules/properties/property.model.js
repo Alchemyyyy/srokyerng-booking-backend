@@ -32,6 +32,7 @@ const getAllApproved = async (filters = {}) => {
           ON p.id = r.property_id
 
       WHERE ps.status_name = 'approved'
+      AND p.deleted_at IS NULL
     `;
 
   const params = [];
@@ -134,7 +135,8 @@ const getAll = async () => {
 
     -- Time
     p.created_at,
-    p.updated_at
+    p.updated_at,
+    p.deleted_at
 
     FROM properties p
 
@@ -155,12 +157,17 @@ const getAll = async () => {
         ON p.id = pi.property_id 
         AND pi.is_cover = TRUE
 
+    
     ORDER BY p.created_at DESC`;
+  // WHERE p.deleted_at IS NULL
   const [rows] = await pool.query(sql);
   return rows;
 };
 const getById = async (id) => {
-  sql = "SELECT * FROM properties WHERE id = ?";
+  sql = `SELECT *
+  FROM properties
+  WHERE id = ?
+  AND deleted_at IS NULL`;
   const [row] = await pool.query(sql, [id]);
   return row;
 };
@@ -208,7 +215,8 @@ const getDetail = async (id) => {
     ON p.owner_id = u.id
 
     WHERE p.id = ?
-    AND ps.status_name = 'approved'`;
+    AND ps.status_name = 'approved'
+    AND p.deleted_at IS NULL`;
 
   let [row] = await pool.query(sql, [id]);
   return row;
@@ -316,6 +324,7 @@ const getMyProperty = async (owner_id) => {
     AND pi.is_cover = TRUE
 
     WHERE p.owner_id = ?
+    AND p.deleted_at IS NULL
 
     ORDER BY p.created_at DESC`;
   let [rows] = await pool.query(sql, [owner_id]);
@@ -359,7 +368,8 @@ const getUpdatePropertyById = async (property_id) => {
     LEFT JOIN users u
     ON p.approved_by = u.id
 
-    WHERE p.id = ?`;
+    WHERE p.id = ?
+    AND p.deleted_at IS NULL`;
   let [row] = await pool.query(sql, [property_id]);
   return row;
 };
@@ -407,7 +417,8 @@ const getMyOwnPropertyById = async (property_id, owner_id) => {
     ON p.owner_id = u.id
 
     WHERE p.id = ?
-    AND p.owner_id = ?`;
+    AND p.owner_id = ?
+    AND p.deleted_at IS NULL`;
 
   let [row] = await pool.query(sql, [property_id, owner_id]);
   return row;
@@ -417,6 +428,7 @@ const checkOwnerProperty = async (property_id, owner_id) => {
     FROM properties
     WHERE id = ?
     AND owner_id = ?
+    AND deleted_at IS NULL
     LIMIT 1`;
   let [row] = await pool.query(sql, [property_id, owner_id]);
   return row;
@@ -471,6 +483,108 @@ const update = async (property_id, owner_id, body) => {
   await pool.query(sql, data);
 };
 
+const softDeleteProperty = async (propertyId) => {
+  sql = `
+    UPDATE properties
+    SET deleted_at = NOW()
+    WHERE id = ?
+  `;
+
+  await pool.query(sql, [propertyId]);
+};
+
+const findPropertyById = async (propertyId) => {
+  const [rows] = await pool.query(
+    `
+    SELECT *
+    FROM properties
+    WHERE id = ?
+    AND deleted_at IS NULL
+    `,
+    [propertyId]
+  );
+
+  return rows[0];
+};
+
+const createManyPropertyImages = async (images) => {
+  const values = images.map((image) => [
+    image.property_id,
+    image.image_url,
+    image.sort_order,
+  ]);
+
+  const [rows] = await pool.query(
+    `
+    INSERT INTO property_images (
+      property_id,
+      image_url,
+      sort_order
+    )
+    VALUES ?
+    `,
+    [values]
+  );
+
+  return rows;
+};
+
+const findImageById = async (imageId) => {
+  const [rows] = await pool.query(
+    `
+    SELECT *
+    FROM property_images
+    WHERE id = ?
+    `,
+    [imageId]
+  );
+
+  return rows[0];
+};
+
+const deleteImage = async (imageId) => {
+  await pool.query(
+    `
+    DELETE FROM property_images
+    WHERE id = ?
+    `,
+    [imageId]
+  );
+};
+
+const resetCoverImages = async (propertyId) => {
+  await pool.query(
+    `
+    UPDATE property_images
+    SET is_cover = FALSE
+    WHERE property_id = ?
+    `,
+    [propertyId]
+  );
+};
+
+const setCoverImage = async (imageId) => {
+  await pool.query(
+    `
+    UPDATE property_images
+    SET is_cover = TRUE
+    WHERE id = ?
+    `,
+    [imageId]
+  );
+};
+
+const updateImageSortOrder = async (imageId, sortOrder) => {
+  await pool.query(
+    `
+    UPDATE property_images
+    SET sort_order = ?
+    WHERE id = ?
+    `,
+    [sortOrder, imageId]
+  );
+};
+
 module.exports = {
   getAllApproved,
   getAll,
@@ -486,4 +600,12 @@ module.exports = {
   getMyOwnPropertyById,
   checkOwnerProperty,
   update,
+  softDeleteProperty,
+  findPropertyById,
+  createManyPropertyImages,
+  findImageById,
+  deleteImage,
+  resetCoverImages,
+  setCoverImage,
+  updateImageSortOrder,
 };
