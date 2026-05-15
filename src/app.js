@@ -6,8 +6,9 @@ const env = require("./config/env");
 const routes = require("./routes");
 const errorMiddleware = require("./middleware/error.middleware");
 
-const app = express();
 
+const app = express();
+  
 app.use(
   cors({
     origin: env.FRONTEND_URL,
@@ -29,7 +30,5 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api", routes);
-
 app.use(errorMiddleware);
-
 module.exports = app;
