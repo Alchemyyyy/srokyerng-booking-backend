@@ -74,6 +74,119 @@ const updateLastLogin = async (userId) => {
   ]);
 };
 
+const markUnusedPasswordResetTokensAsUsed = async (userId) => {
+  await pool.query(
+    `UPDATE password_reset_tokens
+     SET used_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?
+       AND used_at IS NULL`,
+    [userId]
+  );
+};
+
+const createPasswordResetToken = async ({ userId, tokenHash, expiresAt }) => {
+  const [result] = await pool.query(
+    `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+     VALUES (?, ?, ?)`,
+    [userId, tokenHash, expiresAt]
+  );
+
+  return result.insertId;
+};
+
+const findValidPasswordResetToken = async (tokenHash) => {
+  const [rows] = await pool.query(
+    `SELECT
+      password_reset_tokens.*,
+      users.email,
+      users.full_name,
+      users.password_hash,
+      roles.role_name,
+      account_statuses.status_name
+     FROM password_reset_tokens
+     JOIN users ON password_reset_tokens.user_id = users.id
+     JOIN roles ON users.role_id = roles.id
+     JOIN account_statuses ON users.status_id = account_statuses.id
+     WHERE password_reset_tokens.token_hash = ?
+       AND password_reset_tokens.used_at IS NULL
+       AND password_reset_tokens.expires_at > CURRENT_TIMESTAMP
+     LIMIT 1`,
+    [tokenHash]
+  );
+
+  return rows[0];
+};
+
+const markPasswordResetTokenAsUsed = async (tokenId) => {
+  await pool.query(
+    "UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?",
+    [tokenId]
+  );
+};
+
+const updatePassword = async (userId, passwordHash) => {
+  await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [
+    passwordHash,
+    userId,
+  ]);
+};
+
+const createRefreshToken = async ({ userId, tokenHash, expiresAt }) => {
+  const [result] = await pool.query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES (?, ?, ?)`,
+    [userId, tokenHash, expiresAt]
+  );
+
+  return result.insertId;
+};
+
+const findValidRefreshToken = async (tokenHash) => {
+  const [rows] = await pool.query(
+    `SELECT
+      refresh_tokens.*,
+      users.full_name,
+      users.email,
+      users.phone,
+      users.profile_image_url,
+      users.last_login,
+      users.email_verified_at,
+      roles.role_name,
+      account_statuses.status_name
+     FROM refresh_tokens
+     JOIN users ON refresh_tokens.user_id = users.id
+     JOIN roles ON users.role_id = roles.id
+     JOIN account_statuses ON users.status_id = account_statuses.id
+     WHERE refresh_tokens.token_hash = ?
+       AND refresh_tokens.revoked_at IS NULL
+       AND refresh_tokens.expires_at > CURRENT_TIMESTAMP
+     LIMIT 1`,
+    [tokenHash]
+  );
+
+  return rows[0];
+};
+
+const revokeRefreshToken = async (tokenHash) => {
+  await pool.query(
+    `UPDATE refresh_tokens
+     SET revoked_at = CURRENT_TIMESTAMP
+     WHERE token_hash = ?
+       AND revoked_at IS NULL`,
+    [tokenHash]
+  );
+};
+
+const revokeRefreshTokensForUser = async (userId) => {
+  await pool.query(
+    `UPDATE refresh_tokens
+     SET revoked_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?
+       AND revoked_at IS NULL`,
+    [userId]
+  );
+};
+
 module.exports = {
   findRoleByName,
   findStatusByName,
@@ -81,4 +194,13 @@ module.exports = {
   findUserById,
   createUser,
   updateLastLogin,
+  markUnusedPasswordResetTokensAsUsed,
+  createPasswordResetToken,
+  findValidPasswordResetToken,
+  markPasswordResetTokenAsUsed,
+  updatePassword,
+  createRefreshToken,
+  findValidRefreshToken,
+  revokeRefreshToken,
+  revokeRefreshTokensForUser,
 };

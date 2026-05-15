@@ -90,7 +90,48 @@ Returns:
 
 ```json
 {
-  "token": "<jwt>",
+  "access_token": "<jwt>",
+  "user": {
+    "id": 1,
+    "full_name": "Customer User",
+    "email": "customer@example.com",
+    "phone": "012345678",
+    "role": "customer",
+    "status": "active",
+    "profile_image_url": null
+  }
+}
+```
+
+Also sets an HttpOnly refresh-token cookie:
+
+```text
+Set-Cookie: refresh_token=<opaque-refresh-token>; HttpOnly; SameSite=Lax; Path=/api/auth
+```
+
+Use `access_token` in the `Authorization: Bearer <token>` header. The refresh token is stored in the HttpOnly cookie and is not readable by frontend JavaScript.
+
+Browser clients must include credentials when calling login, refresh, and logout:
+
+```js
+fetch(url, {
+  credentials: "include",
+});
+```
+
+### Refresh Token
+
+```text
+POST /auth/refresh-token
+```
+
+Requires the `refresh_token` cookie. Frontend requests must include credentials.
+
+Returns:
+
+```json
+{
+  "access_token": "<new-jwt>",
   "user": {
     "id": 1,
     "full_name": "Customer User",
@@ -127,35 +168,206 @@ Returns the current active user from the database:
 }
 ```
 
-### Customer Protected Check
+### Logout
 
 ```text
-GET /auth/customer-only
+POST /auth/logout
 ```
 
-Requires:
+Requires authentication.
 
-- authenticated user
-- `customer` role
+Requires the `refresh_token` cookie. Frontend requests must include credentials.
 
-### Owner Protected Check
+Revokes the refresh token in the database and clears the refresh-token cookie. Clients should also remove the in-memory access token after a successful logout response.
+
+### Forgot Password
 
 ```text
-GET /auth/owner-only
+POST /auth/forgot-password
 ```
 
-Requires:
+Body:
 
-- authenticated user
-- `owner` role
+```json
+{
+  "email": "customer@example.com"
+}
+```
 
-### Admin Protected Check
+Always returns a generic success message so unknown emails are not exposed:
+
+```json
+{
+  "success": true,
+  "message": "If an account exists for this email, a password reset link has been sent",
+  "data": null
+}
+```
+
+Sends a real email using SMTP settings from `.env`. The reset link points to:
 
 ```text
-GET /auth/admin-only
+<FRONTEND_URL>/reset-password?token=<token>
 ```
 
-Requires:
+### Reset Password
 
-- authenticated user
-- `admin` role
+```text
+POST /auth/reset-password
+```
+
+Body:
+
+```json
+{
+  "token": "<token-from-email>",
+  "password": "newpassword123"
+}
+```
+
+Reset tokens expire after 1 hour and can be used once.
+
+## User Endpoints
+
+All user endpoints require authentication.
+
+### List Users
+
+```text
+GET /users
+```
+
+Requires `admin` role.
+
+Query parameters:
+
+- `role`: `customer`, `owner`, or `admin`
+- `status`: `active` or `suspended`
+- `search`: matches full name, email, or phone
+- `page`: defaults to `1`
+- `limit`: defaults to `20`, max `100`
+
+Returns:
+
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "full_name": "Customer User",
+      "email": "customer@example.com",
+      "phone": "012345678",
+      "role": "customer",
+      "status": "active",
+      "profile_image_url": null,
+      "gender": null,
+      "date_of_birth": null,
+      "address": null,
+      "last_login": "2026-05-10T10:00:00.000Z",
+      "email_verified_at": null,
+      "created_at": "2026-05-01T10:00:00.000Z",
+      "updated_at": "2026-05-01T10:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+### User Detail
+
+```text
+GET /users/:id
+```
+
+Requires `admin` role.
+
+### Update User Status
+
+```text
+PATCH /users/:id/status
+```
+
+Requires `admin` role.
+
+Body:
+
+```json
+{
+  "status": "suspended"
+}
+```
+
+Allowed status values:
+
+- `active`
+- `suspended`
+
+### My Profile
+
+```text
+GET /users/me
+```
+
+Returns the current active user's account and profile data:
+
+```json
+{
+  "id": 1,
+  "full_name": "Customer User",
+  "email": "customer@example.com",
+  "phone": "012345678",
+  "role": "customer",
+  "status": "active",
+  "profile_image_url": null,
+  "gender": null,
+  "date_of_birth": null,
+  "address": null,
+  "last_login": "2026-05-10T10:00:00.000Z",
+  "email_verified_at": null
+}
+```
+
+### Update My Profile
+
+```text
+PATCH /users/me
+```
+
+Body supports partial updates:
+
+```json
+{
+  "full_name": "Updated User",
+  "phone": "012345678",
+  "profile_image_url": "https://example.com/profile.jpg",
+  "gender": "female",
+  "date_of_birth": "2000-01-31",
+  "address": "Phnom Penh"
+}
+```
+
+Optional nullable fields can be sent as `null` or an empty string to clear them.
+
+### Change My Password
+
+```text
+PATCH /users/me/password
+```
+
+Body:
+
+```json
+{
+  "current_password": "password123",
+  "new_password": "newpassword123"
+}
+```
+
+
+
+

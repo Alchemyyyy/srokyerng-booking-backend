@@ -6,6 +6,9 @@ const roleMiddleware = require("../../middleware/role.middleware");
 const upload = require("../../middleware/upload.middleware");
 
 const role = require("../../constants/roles");
+const reviewController = require("../reviews/review.controller");
+const amenityController =
+require("../amenities/amenity.controller");
 
 const router = express.Router();
 
@@ -31,7 +34,23 @@ router.get(
   roleMiddleware(role.OWNER),
   propertyController.getMyProperty
 );
+<<<<<<< HEAD
 
+=======
+router.get(
+  "/:propertyId/reviews",
+  reviewController.getPropertyReviews
+);
+router.get(
+    "/properties/:propertyId/amenities",
+    amenityController.getPropertyAmenities
+);
+
+router.put(
+    "/properties/:propertyId/amenities",
+    amenityController.updatePropertyAmenities
+);
+>>>>>>> dev
 router.get("/:id", propertyController.getDetail);
 
 router.get(

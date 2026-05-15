@@ -1,11 +1,13 @@
 const express = require("express");
 
 const authRoutes = require("../modules/auth/auth.routes");
+const userRoutes = require("../modules/users/user.routes");
 const ownerRoutes = require("../modules/owner/owner.routes");
 const propertyRoutes = require("../modules/properties/property.routes");
 const reservationRoutes = require("../modules/reservations/reservation.routes");
 const reviewRoutes = require("../modules/reviews/review.routes");
 const adminRoutes = require("../modules/admin/admin.routes");
+const amenityRoutes = require("../modules/amenities/amenity.routes");
 
 const router = express.Router();
 
@@ -17,10 +19,12 @@ router.get("/health", (req, res) => {
 });
 
 router.use("/auth", authRoutes);
+router.use("/users", userRoutes);
 router.use("/owner", ownerRoutes);
 router.use("/properties", propertyRoutes);
 router.use("/reservations", reservationRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/admin", adminRoutes);
+router.use("/amenities", amenityRoutes);
 
 module.exports = router;
