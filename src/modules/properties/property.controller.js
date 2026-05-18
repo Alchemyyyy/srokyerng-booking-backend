@@ -52,6 +52,72 @@ const update = asyncHandler(async (req, res) => {
   return successResponse(res, result.message, result.data, result.status);
 });
 
+const deleteProperty = asyncHandler(async (req, res) => {
+  let result = await property.deleteProperty(req.params.id, req.user.id);
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const getPropertyImages = asyncHandler(async (req, res) => {
+  let result = await property.getPropertyImages(req.params.propertyId);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const uploadPropertyImage = asyncHandler(async (req, res) => {
+  let result = await property.uploadPropertyImages(req.params.id, req.user.id, req.files);
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const deletePropertyImage = asyncHandler(async (req, res) => {
+  let result = await property.deletePropertyImage(
+    req.params.id,
+    req.params.imageId,
+    req.user.id
+  );
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const setCoverImage = asyncHandler(async (req, res) => {
+  let result = await property.setCoverImage(
+    req.params.propertyId,
+    req.params.imageId,
+    req.user.id
+  );
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const sortPropertyImages = asyncHandler(async (req, res) => {
+  let result = await property.sortPropertyImages(
+    req.params.propertyId,
+    req.body,
+    req.user.id
+  );
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
 module.exports = {
   getAll,
   getDetail,
@@ -59,4 +125,10 @@ module.exports = {
   getMyProperty,
   getMyPropertyById,
   update,
+  deleteProperty,
+  getPropertyImages,
+  uploadPropertyImage,
+  deletePropertyImage,
+  setCoverImage,
+  sortPropertyImages,
 };

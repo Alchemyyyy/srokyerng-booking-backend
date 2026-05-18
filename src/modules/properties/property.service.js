@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const property = require("./property.model");
 
 const propertyValidate = require("./property.validation");
@@ -207,6 +209,246 @@ const update = async (property_id, owner_id, body) => {
   }
 };
 
+const deleteProperty = async (propertyId, userId) => {
+  // check property
+  const checkRow = await property.findPropertyById(propertyId);
+
+  if (!checkRow) {
+    return {
+      status: 404,
+      result: false,
+      message: "Property not found",
+    };
+  }
+
+  // check owner
+  if (Number(checkRow.owner_id) !== Number(userId)) {
+    return {
+      status: 403,
+      result: false,
+      message: "You do not own this property",
+    };
+  }
+
+  // soft delete
+  await property.softDeleteProperty(propertyId);
+
+  return {
+    status: 200,
+    result: true,
+    message: "Property deleted successfully",
+  };
+};
+
+const getPropertyImages = async (propertyId) => {
+  // check property
+  const propertyRow = await property.findPropertyById(propertyId);
+
+  if (!propertyRow) {
+    return {
+      status: 404,
+      result: false,
+      message: "Property not found",
+    };
+  }
+
+  // get images
+  const images = await property.getImages(propertyId);
+
+  return {
+    status: 200,
+    result: true,
+    message: "Property images fetched successfully",
+    data: images,
+  };
+};
+
+const uploadPropertyImages = async (propertyId, userId, files) => {
+  // check files
+  if (!files || files.length === 0) {
+    return {
+      status: 400,
+      result: false,
+      message: "Images are required",
+    };
+  }
+
+  // check property
+  const checkRow = await property.findPropertyById(propertyId);
+
+  if (!checkRow) {
+    return {
+      status: 404,
+      result: false,
+      message: "Property not found",
+    };
+  }
+
+  // check owner
+  if (Number(checkRow.owner_id) !== Number(userId)) {
+    return {
+      status: 403,
+      result: false,
+      message: "You do not own this property",
+    };
+  }
+
+  // prepare insert data
+  const images = files.map((file, index) => ({
+    property_id: propertyId,
+    image_url: `/uploads/properties/${file.filename}`,
+    sort_order: index,
+  }));
+
+  // insert images
+  await property.createManyPropertyImages(images);
+
+  return {
+    status: 201,
+    result: true,
+    message: "Property images uploaded successfully",
+    data: images,
+  };
+};
+
+const deletePropertyImage = async (propertyId, imageId, userId) => {
+  // check property
+  const checkRow = await property.findPropertyById(propertyId);
+
+  if (!checkRow) {
+    return {
+      status: 404,
+      result: false,
+      message: "Property not found",
+    };
+  }
+
+  // check owner
+  if (Number(checkRow.owner_id) !== Number(userId)) {
+    return {
+      status: 403,
+      result: false,
+      message: "You do not own this property",
+    };
+  }
+
+  // check image
+  const image = await property.findImageById(imageId);
+
+  if (!image) {
+    return {
+      status: 404,
+      result: false,
+      message: "Image not found",
+    };
+  }
+
+  // check image belongs to property
+  if (Number(image.property_id) !== Number(propertyId)) {
+    return {
+      status: 400,
+      result: false,
+      message: "Image does not belong to this property",
+    };
+  }
+
+  // delete physical file
+  const filePath = path.join(__dirname, "../../uploads/properties", image.image_url);
+
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  // delete db record
+  await property.deleteImage(imageId);
+
+  return {
+    status: 200,
+    result: true,
+    message: "Property image deleted successfully",
+  };
+};
+
+const setCoverImage = async (propertyId, imageId, ownerId) => {
+  const checkRow = await property.findPropertyById(propertyId);
+
+  if (!checkRow) {
+    return {
+      status: 404,
+      result: false,
+      message: "Property not found",
+    };
+  }
+
+  if (Number(checkRow.owner_id) !== Number(ownerId)) {
+    return {
+      status: 403,
+      result: false,
+      message: "You do not own this property",
+    };
+  }
+
+  const image = await property.findImageById(imageId);
+
+  if (!image) {
+    return {
+      status: 404,
+      result: false,
+      message: "Image not found",
+    };
+  }
+
+  if (Number(image.property_id) !== Number(propertyId)) {
+    return {
+      status: 400,
+      result: false,
+      message: "Image does not belong to this property",
+    };
+  }
+
+  await property.resetCoverImages(propertyId);
+
+  await property.setCoverImage(imageId);
+
+  return {
+    status: 200,
+    result: true,
+    message: "Cover image updated successfully",
+    data: null,
+  };
+};
+
+const sortPropertyImages = async (propertyId, images, ownerId) => {
+  const propertyRow = await property.findPropertyById(propertyId);
+
+  if (!propertyRow) {
+    return {
+      status: 404,
+      result: false,
+      message: "Property not found",
+    };
+  }
+
+  if (Number(propertyRow.owner_id) !== Number(ownerId)) {
+    return {
+      status: 403,
+      result: false,
+      message: "You do not own this property",
+    };
+  }
+
+  for (const item of images) {
+    await property.updateImageSortOrder(item.image_id, item.sort_order);
+  }
+
+  return {
+    status: 200,
+    result: true,
+    message: "Image sort updated successfully",
+    data: null,
+  };
+};
+
 module.exports = {
   getAllApproved,
   getAll,
@@ -216,4 +458,10 @@ module.exports = {
   updateStatus,
   getMyPropertyById,
   update,
+  deleteProperty,
+  getPropertyImages,
+  uploadPropertyImages,
+  deletePropertyImage,
+  setCoverImage,
+  sortPropertyImages,
 };
