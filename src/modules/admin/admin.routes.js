@@ -5,6 +5,7 @@ const reviewController = require("../reviews/review.controller");
 const authMiddleware = require("../../middleware/auth.middleware");
 const roleMiddleware = require("../../middleware/role.middleware");
 const ROLES = require("../../constants/roles");
+const paymentController = require("../payments/payment.controller");
 
 const router = express.Router();
 
@@ -17,4 +18,10 @@ router.patch("/reservations/:id/status", reservationController.updateReservation
 router.get("/properties", adminController.getAll);
 router.patch("/properties/:id/status", adminController.updateStatusProperty);
 router.get("/reviews", reviewController.getAllReviews);
+
+// Payments
+router.get("/payments", paymentController.getAllPayments);
+router.patch("/payments/:id/verify", paymentController.verifyPayment);
+router.patch("/payments/:id/reject", paymentController.rejectPayment);
+router.patch("/payments/:id/refund", paymentController.refundPayment);
 module.exports = router;
