@@ -48,6 +48,13 @@ Final role values:
 
 ## Auth Endpoints
 
+Sensitive auth endpoints are rate-limited:
+
+- `POST /auth/login`: 5 requests per 15 minutes
+- `POST /auth/forgot-password`: 3 requests per 15 minutes
+- `POST /auth/reset-password`: 5 requests per 15 minutes
+- `POST /auth/resend-verification-email`: 3 requests per 15 minutes
+
 ### Register
 
 ```text
@@ -127,6 +134,8 @@ POST /auth/refresh-token
 
 Requires the `refresh_token` cookie. Frontend requests must include credentials.
 
+On success, the old refresh token is revoked and a new HttpOnly refresh-token cookie is set.
+
 Returns:
 
 ```json
@@ -168,6 +177,32 @@ Returns the current active user from the database:
 }
 ```
 
+### Verify Email
+
+```text
+POST /auth/verify-email
+```
+
+Body:
+
+```json
+{
+  "token": "<token-from-email>"
+}
+```
+
+Verification tokens expire after 24 hours and can be used once.
+
+### Resend Verification Email
+
+```text
+POST /auth/resend-verification-email
+```
+
+Requires authentication.
+
+Sends a new verification link if the current user's email is not already verified.
+
 ### Logout
 
 ```text
@@ -179,6 +214,49 @@ Requires authentication.
 Requires the `refresh_token` cookie. Frontend requests must include credentials.
 
 Revokes the refresh token in the database and clears the refresh-token cookie. Clients should also remove the in-memory access token after a successful logout response.
+
+### Logout All Devices
+
+```text
+POST /auth/logout-all
+```
+
+Requires authentication.
+
+Revokes all refresh tokens for the current user and clears the current refresh-token cookie. Clients should also remove the in-memory access token after a successful response.
+
+### List Sessions
+
+```text
+GET /auth/sessions
+```
+
+Requires authentication.
+
+Returns active refresh sessions for the current user:
+
+```json
+[
+  {
+    "id": 1,
+    "user_agent": "Mozilla/5.0",
+    "ip_address": "127.0.0.1",
+    "expires_at": "2026-06-18T01:00:00.000Z",
+    "last_used_at": "2026-05-18T01:00:00.000Z",
+    "created_at": "2026-05-18T01:00:00.000Z"
+  }
+]
+```
+
+### Revoke Session
+
+```text
+DELETE /auth/sessions/:id
+```
+
+Requires authentication.
+
+Revokes one active refresh session owned by the current user.
 
 ### Forgot Password
 
@@ -353,6 +431,36 @@ Body supports partial updates:
 
 Optional nullable fields can be sent as `null` or an empty string to clear them.
 
+### Update My Profile Image
+
+```text
+PATCH /users/me/profile-image
+```
+
+Requires authentication.
+
+Content type:
+
+```text
+multipart/form-data
+```
+
+Form field:
+
+```text
+profile_image
+```
+
+Allowed file types:
+
+- `image/jpeg`
+- `image/png`
+- `image/webp`
+
+Maximum file size: `5MB`.
+
+Stores the image under `/uploads/profiles/` and updates `profile_image_url`.
+
 ### Change My Password
 
 ```text
@@ -367,7 +475,3 @@ Body:
   "new_password": "newpassword123"
 }
 ```
-
-
-
-

@@ -44,6 +44,12 @@ const changePassword = asyncHandler(async (req, res) => {
   return successResponse(res, "Password changed successfully");
 });
 
+const updateProfileImage = asyncHandler(async (req, res) => {
+  const user = await userService.updateMyProfileImage(req.user.id, req.file);
+
+  return successResponse(res, "Profile image updated successfully", user);
+});
+
 const getAll = asyncHandler(async (req, res) => {
   const query = normalizeListUsersQuery(req.query);
   const errors = validateListUsersQuery(query);
@@ -92,6 +98,7 @@ module.exports = {
   getMe,
   updateMe,
   changePassword,
+  updateProfileImage,
   getAll,
   getById,
   updateStatus,

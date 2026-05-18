@@ -112,17 +112,23 @@ npm start
 
 - `GET /health` (under `/api`)
 - `POST /auth/register`
-- `POST /auth/login`
+- `POST /auth/login` (rate limited)
 - `POST /auth/refresh-token`
-- `POST /auth/forgot-password`
-- `POST /auth/reset-password`
+- `POST /auth/forgot-password` (rate limited)
+- `POST /auth/reset-password` (rate limited)
+- `POST /auth/verify-email`
+- `POST /auth/resend-verification-email` (requires `Authorization: Bearer <token>`, rate limited)
 - `GET /auth/me` (requires `Authorization: Bearer <token>`)
+- `GET /auth/sessions` (requires `Authorization: Bearer <token>`)
+- `DELETE /auth/sessions/:id` (requires `Authorization: Bearer <token>`)
 - `POST /auth/logout` (requires `Authorization: Bearer <token>`)
+- `POST /auth/logout-all` (requires `Authorization: Bearer <token>`)
 - `GET /users` (requires `admin`)
 - `GET /users/:id` (requires `admin`)
 - `PATCH /users/:id/status` (requires `admin`)
 - `GET /users/me` (requires `Authorization: Bearer <token>`)
 - `PATCH /users/me` (requires `Authorization: Bearer <token>`)
+- `PATCH /users/me/profile-image` (requires `Authorization: Bearer <token>`)
 - `PATCH /users/me/password` (requires `Authorization: Bearer <token>`)
 
 ## Response Shape

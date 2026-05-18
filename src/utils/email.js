@@ -47,6 +47,29 @@ const sendPasswordResetEmail = async ({ to, fullName, resetUrl }) => {
   });
 };
 
+const sendEmailVerificationEmail = async ({ to, fullName, verificationUrl }) => {
+  await getTransporter().sendMail({
+    from: env.SMTP_FROM,
+    to,
+    subject: "Verify your SrokYerng Booking email",
+    text: [
+      `Hello ${fullName},`,
+      "",
+      "Use this link to verify your email address:",
+      verificationUrl,
+      "",
+      "This link expires in 24 hours. If you did not create this account, you can ignore this email.",
+    ].join("\n"),
+    html: `
+      <p>Hello ${fullName},</p>
+      <p>Use this link to verify your email address:</p>
+      <p><a href="${verificationUrl}">${verificationUrl}</a></p>
+      <p>This link expires in 24 hours. If you did not create this account, you can ignore this email.</p>
+    `,
+  });
+};
+
 module.exports = {
   sendPasswordResetEmail,
+  sendEmailVerificationEmail,
 };

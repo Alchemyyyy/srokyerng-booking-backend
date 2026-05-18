@@ -68,6 +68,8 @@ const loadAuthService = ({ authModel, hashPassword, comparePassword, generateTok
     loaded: true,
     exports: {
       sendPasswordResetEmail: authModel.sendPasswordResetEmail || (async () => {}),
+      sendEmailVerificationEmail:
+        authModel.sendEmailVerificationEmail || (async () => {}),
     },
   };
 
@@ -249,6 +251,18 @@ test("refresh token returns 400 for invalid payload", async () => {
   assert.equal(res.payload.message, "Validation failed");
 });
 
+test("verify email returns 400 for invalid payload", async () => {
+  const req = { body: {} };
+  const res = createRes();
+  const next = () => {};
+
+  await authController.verifyEmail(req, res, next);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.payload.success, false);
+  assert.equal(res.payload.message, "Validation failed");
+});
+
 test("auth service registers a new customer with a hashed password", async () => {
   const calls = {};
   const authModel = {
@@ -267,6 +281,16 @@ test("auth service registers a new customer with a hashed password", async () =>
     createUser: async (payload) => {
       calls.createUser = payload;
       return 10;
+    },
+    markUnusedEmailVerificationTokensAsUsed: async (userId) => {
+      calls.markUnusedEmailVerificationTokensAsUsed = userId;
+    },
+    createEmailVerificationToken: async (payload) => {
+      calls.createEmailVerificationToken = payload;
+      return 4;
+    },
+    sendEmailVerificationEmail: async (payload) => {
+      calls.sendEmailVerificationEmail = payload;
     },
   };
 
@@ -307,6 +331,109 @@ test("auth service registers a new customer with a hashed password", async () =>
       email: "customer@example.com",
       phone: "012345678",
       passwordHash: "hashed-password",
+    });
+    assert.equal(calls.markUnusedEmailVerificationTokensAsUsed, 10);
+    assert.equal(calls.createEmailVerificationToken.userId, 10);
+    assert.match(calls.createEmailVerificationToken.tokenHash, /^[a-f0-9]{64}$/);
+    assert.ok(calls.createEmailVerificationToken.expiresAt instanceof Date);
+    assert.equal(calls.sendEmailVerificationEmail.to, "customer@example.com");
+    assert.equal(calls.sendEmailVerificationEmail.fullName, "Customer User");
+    assert.match(
+      calls.sendEmailVerificationEmail.verificationUrl,
+      /^http:\/\/localhost:5173\/verify-email\?token=[a-f0-9]{64}$/
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("auth service verifies email with a valid verification token", async () => {
+  const calls = {};
+  const rawToken = "valid-email-verification-token";
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  const { authService, restore } = loadAuthService({
+    authModel: {
+      findValidEmailVerificationToken: async (hash) => {
+        calls.findValidEmailVerificationToken = hash;
+        return {
+          id: 8,
+          user_id: 1,
+          status_name: "active",
+        };
+      },
+      markEmailAsVerified: async (userId) => {
+        calls.markEmailAsVerified = userId;
+      },
+      markEmailVerificationTokenAsUsed: async (tokenId) => {
+        calls.markEmailVerificationTokenAsUsed = tokenId;
+      },
+    },
+    hashPassword: async () => "hashed-password",
+    comparePassword: async () => false,
+    generateToken: () => "token",
+  });
+
+  try {
+    await authService.verifyEmail({ token: rawToken });
+
+    assert.equal(calls.findValidEmailVerificationToken, tokenHash);
+    assert.equal(calls.markEmailAsVerified, 1);
+    assert.equal(calls.markEmailVerificationTokenAsUsed, 8);
+  } finally {
+    restore();
+  }
+});
+
+test("auth service resends verification email for an unverified active user", async () => {
+  const calls = {};
+  const { authService, restore } = loadAuthService({
+    authModel: {
+      findUserById: async (userId) => createUserRow({ id: userId }),
+      markUnusedEmailVerificationTokensAsUsed: async (userId) => {
+        calls.markUnusedEmailVerificationTokensAsUsed = userId;
+      },
+      createEmailVerificationToken: async (payload) => {
+        calls.createEmailVerificationToken = payload;
+        return 9;
+      },
+      sendEmailVerificationEmail: async (payload) => {
+        calls.sendEmailVerificationEmail = payload;
+      },
+    },
+    hashPassword: async () => "hashed-password",
+    comparePassword: async () => false,
+    generateToken: () => "token",
+  });
+
+  try {
+    await authService.resendVerificationEmail(1);
+
+    assert.equal(calls.markUnusedEmailVerificationTokensAsUsed, 1);
+    assert.equal(calls.createEmailVerificationToken.userId, 1);
+    assert.match(calls.createEmailVerificationToken.tokenHash, /^[a-f0-9]{64}$/);
+    assert.equal(calls.sendEmailVerificationEmail.to, "customer@example.com");
+  } finally {
+    restore();
+  }
+});
+
+test("auth service rejects resending verification email when already verified", async () => {
+  const { authService, restore } = loadAuthService({
+    authModel: {
+      findUserById: async () =>
+        createUserRow({ email_verified_at: "2026-05-18T01:00:00.000Z" }),
+    },
+    hashPassword: async () => "hashed-password",
+    comparePassword: async () => false,
+    generateToken: () => "token",
+  });
+
+  try {
+    await assert.rejects(authService.resendVerificationEmail(1), (error) => {
+      assert.equal(error.message, "Email is already verified");
+      assert.equal(error.statusCode, 400);
+      return true;
     });
   } finally {
     restore();
@@ -537,10 +664,16 @@ test("auth service logs in an active user and returns access and refresh tokens"
   });
 
   try {
-    const result = await authService.login({
-      email: "customer@example.com",
-      password: "password123",
-    });
+    const result = await authService.login(
+      {
+        email: "customer@example.com",
+        password: "password123",
+      },
+      {
+        userAgent: "Mozilla/5.0",
+        ipAddress: "127.0.0.1",
+      }
+    );
 
     assert.equal(result.access_token, "signed-token");
     assert.match(result.refresh_token, /^[a-f0-9]{96}$/);
@@ -566,6 +699,8 @@ test("auth service logs in an active user and returns access and refresh tokens"
       role: "customer",
     });
     assert.equal(calls.createRefreshToken.userId, 1);
+    assert.equal(calls.createRefreshToken.userAgent, "Mozilla/5.0");
+    assert.equal(calls.createRefreshToken.ipAddress, "127.0.0.1");
     assert.match(calls.createRefreshToken.tokenHash, /^[a-f0-9]{64}$/);
     assert.ok(calls.createRefreshToken.expiresAt instanceof Date);
     assert.equal(Object.hasOwn(result.user, "password_hash"), false);
@@ -589,6 +724,13 @@ test("auth service refreshes access token with a valid refresh token", async () 
           user_id: 1,
         };
       },
+      revokeRefreshToken: async (hash) => {
+        calls.revokeRefreshToken = hash;
+      },
+      createRefreshToken: async (payload) => {
+        calls.createRefreshToken = payload;
+        return 23;
+      },
     },
     hashPassword: async () => "hashed-password",
     comparePassword: async () => true,
@@ -599,16 +741,29 @@ test("auth service refreshes access token with a valid refresh token", async () 
   });
 
   try {
-    const result = await authService.refreshToken({
-      refresh_token: rawToken,
-    });
+    const result = await authService.refreshToken(
+      {
+        refresh_token: rawToken,
+      },
+      {
+        userAgent: "Mobile Safari",
+        ipAddress: "192.168.1.10",
+      }
+    );
 
     assert.equal(calls.findValidRefreshToken, tokenHash);
+    assert.equal(calls.revokeRefreshToken, tokenHash);
+    assert.equal(calls.createRefreshToken.userId, 1);
+    assert.equal(calls.createRefreshToken.userAgent, "Mobile Safari");
+    assert.equal(calls.createRefreshToken.ipAddress, "192.168.1.10");
+    assert.match(calls.createRefreshToken.tokenHash, /^[a-f0-9]{64}$/);
+    assert.ok(calls.createRefreshToken.expiresAt instanceof Date);
     assert.deepEqual(calls.generateToken, {
       id: 1,
       role: "customer",
     });
     assert.equal(result.access_token, "new-access-token");
+    assert.match(result.refresh_token, /^[a-f0-9]{96}$/);
     assert.equal(result.user.id, 1);
     assert.equal(result.user.role, "customer");
     assert.equal(Object.hasOwn(result.user, "password_hash"), false);
@@ -665,6 +820,112 @@ test("auth service logout revokes refresh token", async () => {
     });
 
     assert.equal(calls.revokeRefreshToken, tokenHash);
+  } finally {
+    restore();
+  }
+});
+
+test("auth service logout all revokes all refresh tokens for user", async () => {
+  const calls = {};
+
+  const { authService, restore } = loadAuthService({
+    authModel: {
+      revokeRefreshTokensForUser: async (userId) => {
+        calls.revokeRefreshTokensForUser = userId;
+      },
+    },
+    hashPassword: async () => "hashed-password",
+    comparePassword: async () => true,
+    generateToken: () => "access-token",
+  });
+
+  try {
+    await authService.logoutAll(7);
+
+    assert.equal(calls.revokeRefreshTokensForUser, 7);
+  } finally {
+    restore();
+  }
+});
+
+test("auth service lists active sessions for user", async () => {
+  const calls = {};
+  const sessions = [
+    {
+      id: 1,
+      user_agent: "Mozilla/5.0",
+      ip_address: "127.0.0.1",
+      expires_at: "2026-06-18T01:00:00.000Z",
+      last_used_at: "2026-05-18T01:00:00.000Z",
+      created_at: "2026-05-18T01:00:00.000Z",
+    },
+  ];
+
+  const { authService, restore } = loadAuthService({
+    authModel: {
+      findActiveRefreshTokensByUserId: async (userId) => {
+        calls.findActiveRefreshTokensByUserId = userId;
+        return sessions;
+      },
+    },
+    hashPassword: async () => "hashed-password",
+    comparePassword: async () => true,
+    generateToken: () => "access-token",
+  });
+
+  try {
+    const result = await authService.listSessions(7);
+
+    assert.equal(calls.findActiveRefreshTokensByUserId, 7);
+    assert.deepEqual(result, sessions);
+  } finally {
+    restore();
+  }
+});
+
+test("auth service revokes one session for user", async () => {
+  const calls = {};
+
+  const { authService, restore } = loadAuthService({
+    authModel: {
+      revokeRefreshTokenByIdForUser: async (sessionId, userId) => {
+        calls.revokeRefreshTokenByIdForUser = { sessionId, userId };
+        return 1;
+      },
+    },
+    hashPassword: async () => "hashed-password",
+    comparePassword: async () => true,
+    generateToken: () => "access-token",
+  });
+
+  try {
+    await authService.revokeSession(7, 3);
+
+    assert.deepEqual(calls.revokeRefreshTokenByIdForUser, {
+      sessionId: 3,
+      userId: 7,
+    });
+  } finally {
+    restore();
+  }
+});
+
+test("auth service rejects revoking another user's session", async () => {
+  const { authService, restore } = loadAuthService({
+    authModel: {
+      revokeRefreshTokenByIdForUser: async () => 0,
+    },
+    hashPassword: async () => "hashed-password",
+    comparePassword: async () => true,
+    generateToken: () => "access-token",
+  });
+
+  try {
+    await assert.rejects(authService.revokeSession(7, 3), (error) => {
+      assert.equal(error.message, "Session not found");
+      assert.equal(error.statusCode, 404);
+      return true;
+    });
   } finally {
     restore();
   }

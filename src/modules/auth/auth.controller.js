@@ -12,10 +12,12 @@ const {
   validateForgotPassword,
   validateResetPassword,
   validateRefreshToken,
+  validateVerifyEmail,
   normalizeRegisterBody,
   normalizeLoginBody,
   normalizeForgotPasswordBody,
   normalizeResetPasswordBody,
+  normalizeVerifyEmailBody,
 } = require("./auth.validation");
 
 const register = asyncHandler(async (req, res) => {
@@ -31,6 +33,13 @@ const register = asyncHandler(async (req, res) => {
   return successResponse(res, "Account registered successfully", user, 201);
 });
 
+const getRequestMetadata = (req) => {
+  return {
+    userAgent: req.headers["user-agent"],
+    ipAddress: req.ip,
+  };
+};
+
 const login = asyncHandler(async (req, res) => {
   const payload = normalizeLoginBody(req.body);
   const errors = validateLogin(payload);
@@ -39,7 +48,7 @@ const login = asyncHandler(async (req, res) => {
     return errorResponse(res, "Validation failed", 400, errors);
   }
 
-  const data = await authService.login(payload);
+  const data = await authService.login(payload, getRequestMetadata(req));
   setRefreshTokenCookie(res, data.refresh_token);
 
   return successResponse(res, "Login successful", {
@@ -52,6 +61,25 @@ const getMe = asyncHandler(async (req, res) => {
   const user = await authService.getCurrentUser(req.user.id);
 
   return successResponse(res, "Current user fetched successfully", user);
+});
+
+const verifyEmail = asyncHandler(async (req, res) => {
+  const payload = normalizeVerifyEmailBody(req.body);
+  const errors = validateVerifyEmail(payload);
+
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  await authService.verifyEmail(payload);
+
+  return successResponse(res, "Email verified successfully");
+});
+
+const resendVerificationEmail = asyncHandler(async (req, res) => {
+  await authService.resendVerificationEmail(req.user.id);
+
+  return successResponse(res, "Verification email sent successfully");
 });
 
 const logout = asyncHandler(async (req, res) => {
@@ -106,17 +134,51 @@ const refreshToken = asyncHandler(async (req, res) => {
     return errorResponse(res, "Validation failed", 400, errors);
   }
 
-  const data = await authService.refreshToken(payload);
+  const data = await authService.refreshToken(payload, getRequestMetadata(req));
+  setRefreshTokenCookie(res, data.refresh_token);
 
-  return successResponse(res, "Token refreshed successfully", data);
+  return successResponse(res, "Token refreshed successfully", {
+    access_token: data.access_token,
+    user: data.user,
+  });
+});
+
+const logoutAll = asyncHandler(async (req, res) => {
+  await authService.logoutAll(req.user.id);
+  clearRefreshTokenCookie(res);
+
+  return successResponse(res, "Logged out from all devices successfully");
+});
+
+const getSessions = asyncHandler(async (req, res) => {
+  const sessions = await authService.listSessions(req.user.id);
+
+  return successResponse(res, "Sessions fetched successfully", sessions);
+});
+
+const revokeSession = asyncHandler(async (req, res) => {
+  const sessionId = Number(req.params.id);
+
+  if (!Number.isInteger(sessionId) || sessionId <= 0) {
+    return errorResponse(res, "Session ID must be a positive integer", 400);
+  }
+
+  await authService.revokeSession(req.user.id, sessionId);
+
+  return successResponse(res, "Session revoked successfully");
 });
 
 module.exports = {
   register,
   login,
   getMe,
+  verifyEmail,
+  resendVerificationEmail,
   logout,
   forgotPassword,
   resetPassword,
   refreshToken,
+  logoutAll,
+  getSessions,
+  revokeSession,
 };
