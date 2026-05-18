@@ -72,38 +72,47 @@ const checkAmenitiesExist = async (
 };
 
 const clearPropertyAmenities = async (
-    propertyId
+  connection,
+  propertyId
 ) => {
 
-    await db.query(
-        `
-        DELETE FROM property_amenities
-        WHERE property_id = ?
-        `,
-        [propertyId]
-    );
+  await connection.query(
+    `
+    DELETE FROM property_amenities
+    WHERE property_id = ?
+    `,
+    [propertyId]
+  );
 
 };
 
 const attachAmenitiesToProperty = async (
-    propertyId,
-    amenityIds
+  connection,
+  propertyId,
+  amenityIds
 ) => {
 
-    for (const amenityId of amenityIds) {
+  if (amenityIds.length === 0) {
+    return;
+  }
 
-        await db.query(
-            `
-            INSERT INTO property_amenities (
-                property_id,
-                amenity_id
-            )
-            VALUES (?, ?)
-            `,
-            [propertyId, amenityId]
-        );
+  const values = amenityIds.map(
+    (amenityId) => [
+      propertyId,
+      amenityId
+    ]
+  );
 
-    }
+  await connection.query(
+    `
+    INSERT INTO property_amenities (
+      property_id,
+      amenity_id
+    )
+    VALUES ?
+    `,
+    [values]
+  );
 
 };
 

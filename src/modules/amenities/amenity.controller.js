@@ -1,122 +1,100 @@
 const amenityService = require(
-    "./amenity.service"
+  "./amenity.service"
 );
 
 const {
-    updatePropertyAmenitiesSchema
+  updatePropertyAmenitiesSchema
 } = require(
-    "./amenity.validation"
+  "./amenity.validation"
 );
 
-const getAllAmenities = async (
-    req,
-    res
-) => {
+const asyncHandler = require(
+  "../../utils/asyncHandler"
+);
 
-    try {
+const {
+  successResponse,
+  errorResponse
+} = require(
+  "../../utils/apiResponse"
+);
 
-        const amenities =
-            await amenityService.getAllAmenities();
+const getAllAmenities = asyncHandler(
+  async (req, res) => {
 
-        res.status(200).json({
-            message:
-                "Amenities fetched successfully",
-            data: amenities
-        });
+    const amenities =
+      await amenityService.getAllAmenities();
 
-    } catch (error) {
+    return successResponse(
+      res,
+      "Amenities fetched successfully",
+      amenities
+    );
 
-        res.status(400).json({
-            message: error.message
-        });
+  }
+);
 
-    }
+const getPropertyAmenities = asyncHandler(
+  async (req, res) => {
 
-};
+    const propertyId =
+      req.params.propertyId;
 
-const getPropertyAmenities = async (
-    req,
-    res
-) => {
+    const amenities =
+      await amenityService.getPropertyAmenities(
+        propertyId
+      );
 
-    try {
+    return successResponse(
+      res,
+      "Property amenities fetched successfully",
+      amenities
+    );
 
-        const propertyId =
-            req.params.propertyId;
+  }
+);
 
-        const amenities =
-            await amenityService.getPropertyAmenities(
-                propertyId
-            );
+const updatePropertyAmenities = asyncHandler(
+  async (req, res) => {
 
-        res.status(200).json({
-            message:
-                "Property amenities fetched successfully",
-            data: amenities
-        });
+    const userId = req.user.id;
 
-    } catch (error) {
+    const propertyId =
+      req.params.propertyId;
 
-        res.status(400).json({
-            message: error.message
-        });
+    const { error } =
+      updatePropertyAmenitiesSchema.validate(
+        req.body
+      );
 
-    }
+    if (error) {
 
-};
-
-const updatePropertyAmenities = async (
-    req,
-    res
-) => {
-
-    try {
-
-        const userId = req.user.id;
-       
-
-        const propertyId =
-            req.params.propertyId;
-
-        const { error } =
-            updatePropertyAmenitiesSchema.validate(
-                req.body
-            );
-
-        if (error) {
-
-            return res.status(400).json({
-                message:
-                    error.details[0].message
-            });
-
-        }
-
-        const amenities =
-            await amenityService.updatePropertyAmenities(
-                userId,
-                propertyId,
-                req.body.amenity_ids
-            );
-
-        res.status(200).json({
-            message:
-                "Property amenities updated successfully",
-            data: amenities
-        });
-
-    } catch (error) {
-
-        res.status(400).json({
-            message: error.message
-        });
+      return errorResponse(
+        res,
+        error.details[0].message,
+        400
+      );
 
     }
 
-};
+    const amenities =
+      await amenityService.updatePropertyAmenities(
+        userId,
+        propertyId,
+        req.body.amenity_ids
+      );
+
+    return successResponse(
+      res,
+      "Property amenities updated successfully",
+      amenities
+    );
+
+  }
+);
 
 module.exports = {
-    getAllAmenities,
-    getPropertyAmenities,
-    updatePropertyAmenities
+  getAllAmenities,
+  getPropertyAmenities,
+  updatePropertyAmenities
 };
