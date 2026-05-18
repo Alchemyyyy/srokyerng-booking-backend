@@ -73,7 +73,7 @@ router.post(
 router.get(
   "/my",
   authMiddleware,
-//   roleMiddleware(ROLES.CUSTOMER),
+  roleMiddleware(ROLES.CUSTOMER),
   paymentController.getMyPayments
 );
 
