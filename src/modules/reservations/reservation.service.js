@@ -4,6 +4,7 @@ const {
   RESERVATION_STATUS,
   CUSTOMER_CANCELLABLE_STATUSES,
 } = require("../../constants/reservation");
+const { validateCreateReservation } = require("./reservation.validation");
 
 const calculateTotalNights = (checkInDate, checkOutDate) => {
   const checkIn = new Date(checkInDate);
@@ -23,8 +24,15 @@ const calculateTotalAmount = (pricePerNight, totalNights) => {
 };
 
 const createReservation = async (customerId, reservationData) => {
+  const { errors, value } = validateCreateReservation(reservationData);
+  if (errors && errors.length > 0) {
+    const error = new Error(errors.join(", "));
+    error.statusCode = 400;
+    throw error;
+  }
+
   const { room_id, check_in_date, check_out_date, total_guests, special_request } =
-    reservationData;
+    value;
 
   // Find room with property details
   const room = await reservationModel.findRoomById(room_id);
