@@ -177,6 +177,15 @@ const refundPayment = asyncHandler(async (req, res) => {
   return successResponse(res, "Payment refunded successfully", payment);
 });
 
+/**
+ * GET /api/admin/payments/pending-verification
+ * Admin only — list payments waiting for verification.
+ */
+const getPendingVerificationPayments = asyncHandler(async (_req, res) => {
+  const payments = await paymentService.getPaymentsPendingVerification();
+  return successResponse(res, "Pending verification payments retrieved successfully", payments);
+});
+
 module.exports = {
   createPayment,
   getMyPayments,
@@ -187,4 +196,5 @@ module.exports = {
   verifyPayment,
   rejectPayment,
   refundPayment,
+  getPendingVerificationPayments,
 };

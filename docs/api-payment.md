@@ -166,6 +166,16 @@ Query parameters:
 - `customer_id`: filter by customer
 - `owner_id`: filter by property owner
 
+### Get Payments Pending Verification (Admin)
+
+```text
+GET /admin/payments/pending-verification
+```
+
+Requires authentication and `admin` role.
+
+Returns payments with status `submitted` that are waiting for verification.
+
 ### Verify Payment (Admin)
 
 ```text

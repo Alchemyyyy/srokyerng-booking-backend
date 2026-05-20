@@ -20,6 +20,8 @@ router.patch("/properties/:id/status", adminController.updateStatusProperty);
 router.get("/reviews", reviewController.getAllReviews);
 
 // Payments
+router.get("/payments/pending-verification", paymentController.getPendingVerificationPayments);
+router.get("/payments/:id", paymentController.getPaymentById);
 router.get("/payments", paymentController.getAllPayments);
 router.patch("/payments/:id/verify", paymentController.verifyPayment);
 router.patch("/payments/:id/reject", paymentController.rejectPayment);

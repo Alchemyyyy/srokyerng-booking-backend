@@ -444,7 +444,10 @@ test("verifyPayment returns 400 for invalid transition (pending → paid)", asyn
 
 test("rejectPayment transitions submitted → failed", async () => {
   const calls = {};
-  const failedRow = mockPaymentRow({ status_name: "failed", rejection_reason: "Blurry receipt image" });
+  const failedRow = mockPaymentRow({
+    status_name: "failed",
+    rejection_reason: "Blurry receipt image",
+  });
 
   const { service, restore } = loadPaymentService({
     findPaymentById: async () => {
@@ -464,7 +467,10 @@ test("rejectPayment transitions submitted → failed", async () => {
   try {
     const result = await service.rejectPayment(1, 1, "Blurry receipt image");
     assert.equal(calls.targetStatus, "failed");
-    assert.equal(calls.updatePaymentStatus.extra.rejection_reason, "Blurry receipt image");
+    assert.equal(
+      calls.updatePaymentStatus.extra.rejection_reason,
+      "Blurry receipt image"
+    );
     assert.equal(result.payment_status, "failed");
   } finally {
     restore();
@@ -569,16 +575,17 @@ test("getPaymentById allows owner to view payment for their property", async () 
 
 test("getPaymentById allows admin to retrieve payment proof data", async () => {
   const { service, restore } = loadPaymentService({
-    findPaymentById: async () => mockPaymentRow({
-      id: 1,
-      status_name: "submitted",
-      receipt_image_url: "/uploads/receipts/test.jpg",
-      rejection_reason: null,
-      verified_at: null,
-      paid_at: null,
-      verified_by: null,
-      verified_by_name: null,
-    }),
+    findPaymentById: async () =>
+      mockPaymentRow({
+        id: 1,
+        status_name: "submitted",
+        receipt_image_url: "/uploads/receipts/test.jpg",
+        rejection_reason: null,
+        verified_at: null,
+        paid_at: null,
+        verified_by: null,
+        verified_by_name: null,
+      }),
   });
 
   try {
@@ -611,6 +618,70 @@ test("getMyPayments returns list of customer payments", async () => {
     assert.equal(result[1].payment_status, "submitted");
   } finally {
     restore();
+  }
+});
+
+test("getPaymentsPendingVerification returns submitted payments", async () => {
+  const rows = [
+    mockPaymentRow({ id: 11, status_name: "submitted" }),
+    mockPaymentRow({ id: 12, status_name: "submitted" }),
+  ];
+
+  const { service, restore } = loadPaymentService({
+    findAllPayments: async (filters) => {
+      assert.equal(filters.status, "submitted");
+      return rows;
+    },
+  });
+
+  try {
+    const result = await service.getPaymentsPendingVerification();
+    assert.equal(result.length, 2);
+    assert.equal(result[0].payment_status, "submitted");
+    assert.equal(result[1].id, 12);
+  } finally {
+    restore();
+  }
+});
+
+test("getPendingVerificationPayments controller returns payment list", async () => {
+  const req = { user: { id: 1, role: "admin" } };
+  const res = createRes();
+  const servicePath = require.resolve("../src/modules/payments/payment.service");
+  const controllerPath = require.resolve("../src/modules/payments/payment.controller");
+  const originalService = require.cache[servicePath];
+  const originalController = require.cache[controllerPath];
+  const stubService = {
+    getPaymentsPendingVerification: async () => [
+      {
+        ...mockPaymentRow({ id: 11, status_name: "submitted" }),
+        payment_status: "submitted",
+      },
+    ],
+  };
+
+  delete require.cache[servicePath];
+  delete require.cache[controllerPath];
+  require.cache[servicePath] = {
+    id: servicePath,
+    filename: servicePath,
+    loaded: true,
+    exports: stubService,
+  };
+
+  const controller = require("../src/modules/payments/payment.controller");
+
+  try {
+    await controller.getPendingVerificationPayments(req, res, () => {});
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.payload.success, true);
+    assert.equal(res.payload.data.length, 1);
+    assert.equal(res.payload.data[0].payment_status, "submitted");
+  } finally {
+    delete require.cache[servicePath];
+    delete require.cache[controllerPath];
+    if (originalService) require.cache[servicePath] = originalService;
+    if (originalController) require.cache[controllerPath] = originalController;
   }
 });
 

@@ -211,6 +211,11 @@ const getAllPayments = async (filters = {}) => {
   return rows.map(toSafePayment);
 };
 
+const getPaymentsPendingVerification = async () => {
+  const rows = await paymentModel.findAllPayments({ status: "submitted" });
+  return rows.map(toSafePayment);
+};
+
 module.exports = {
   createPayment,
   uploadReceipt,
@@ -220,4 +225,5 @@ module.exports = {
   rejectPayment,
   refundPayment,
   getAllPayments,
+  getPaymentsPendingVerification,
 };
