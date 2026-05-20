@@ -72,7 +72,7 @@ Requires authentication and `customer` role.
 
 Content-Type: `multipart/form-data`
 
-Form field: `receipt` (file)
+key: `receipt` (file)
 
 - Allowed types: `image/jpeg`, `image/png`, `image/webp`, `image/gif`
 - Max size: 5 MB
@@ -81,6 +81,41 @@ Form field: `receipt` (file)
 - Re-upload allowed while status is `pending` or `submitted`
 
 Returns updated payment with `receipt_image_url` set and `payment_status: "submitted"`.
+
+### Payment Proof Endpoints (Customer)
+
+#### Upload or Replace Proof
+
+```text
+POST /payments/:id/proof
+PATCH /payments/:id/proof
+```
+
+Requires authentication and `customer` role.
+
+Content-Type: `multipart/form-data`
+
+Form field: `receipt` (file)
+
+- Works for both initial proof upload and proof replacement
+- Allowed when payment status is `pending` or `submitted`
+- On success, payment status becomes `submitted`
+- Returns the updated payment object with `receipt_image_url`
+
+#### View Proof Details
+
+```text
+GET /payments/:id/proof
+```
+
+Requires authentication.
+
+Access rules:
+- `customer`: own payment only
+- `owner`: own property payments
+- `admin`: any payment
+
+Returns proof metadata, including `receipt_image_url`, `payment_status`, `rejection_reason`, `verified_by`, and timestamps.
 
 ### Get My Payments (Customer)
 
@@ -167,7 +202,7 @@ Body:
 }
 ```
 
-`rejection_reason` is required. It is stored in `transaction_reference`.
+`rejection_reason` is required. It is stored in `rejection_reason`.
 
 ### Refund Payment (Admin)
 

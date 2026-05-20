@@ -78,6 +78,28 @@ router.get(
 );
 
 // GET /:id must come AFTER /my to avoid route conflict
+router.post(
+  "/:id/proof",
+  authMiddleware,
+  roleMiddleware(ROLES.CUSTOMER),
+  handleReceiptUpload,
+  paymentController.uploadReceipt
+);
+
+router.patch(
+  "/:id/proof",
+  authMiddleware,
+  roleMiddleware(ROLES.CUSTOMER),
+  handleReceiptUpload,
+  paymentController.uploadReceipt
+);
+
+router.get(
+  "/:id/proof",
+  authMiddleware,
+  paymentController.getPaymentProof
+);
+
 router.get("/:id", authMiddleware, paymentController.getPaymentById);
 
 router.post(

@@ -13,6 +13,7 @@ const toSafePayment = (row) => ({
   amount: row.amount,
   currency: row.currency,
   transaction_reference: row.transaction_reference,
+  rejection_reason: row.rejection_reason,
   receipt_image_url: row.receipt_image_url,
   payment_status: row.status_name,
   payment_method: row.method_name,
@@ -121,7 +122,7 @@ const uploadReceipt = async (customerId, paymentId, file) => {
 
   // Remove old receipt file if re-uploading
   if (payment.receipt_image_url) {
-    const oldPath = path.join(process.cwd(), payment.receipt_image_url);
+    const oldPath = path.join(process.cwd(), payment.receipt_image_url.replace(/^\//, ""));
     if (fs.existsSync(oldPath)) {
       fs.unlinkSync(oldPath);
     }
@@ -194,7 +195,7 @@ const rejectPayment = async (adminId, paymentId, rejectionReason) => {
   return _adminTransition(paymentId, "failed", {
     verified_by: adminId,
     verified_at: new Date(),
-    transaction_reference: rejectionReason || null,
+    rejection_reason: rejectionReason || null,
   });
 };
 

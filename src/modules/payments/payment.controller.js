@@ -53,15 +53,47 @@ const getPaymentById = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/payments/:id/proof
+ * Customer/admin — view payment proof details.
+ */
+const getPaymentProof = asyncHandler(async (req, res) => {
+  const paymentId = parseInt(req.params.id, 10);
+  if (isNaN(paymentId) || paymentId <= 0) {
+    return errorResponse(res, "Invalid payment ID", 400);
+  }
+
+  const payment = await paymentService.getPaymentById(
+    paymentId,
+    req.user.id,
+    req.user.role
+  );
+  return successResponse(res, "Payment proof retrieved successfully", {
+    id: payment.id,
+    payment_status: payment.payment_status,
+    receipt_image_url: payment.receipt_image_url,
+    rejection_reason: payment.rejection_reason,
+    verified_by: payment.verified_by,
+    verified_by_name: payment.verified_by_name,
+    verified_at: payment.verified_at,
+    paid_at: payment.paid_at,
+  });
+});
+
+/**
  * POST /api/payments/:id/receipt
  * Customer only — upload proof of payment for own payment.
  * multer is applied in the route layer so `req.file` is available here.
  */
 const uploadReceipt = asyncHandler(async (req, res) => {
+  console.log(req.user.id);
+  console.log(req.file);
+  
   const paymentId = parseInt(req.params.id, 10);
   if (isNaN(paymentId) || paymentId <= 0) {
     return errorResponse(res, "Invalid payment ID", 400);
   }
+  console.log(paymentId);
+  
 
   const payment = await paymentService.uploadReceipt(req.user.id, paymentId, req.file);
   return successResponse(res, "Receipt uploaded successfully", payment);
@@ -149,6 +181,7 @@ module.exports = {
   createPayment,
   getMyPayments,
   getPaymentById,
+  getPaymentProof,
   uploadReceipt,
   getAllPayments,
   verifyPayment,

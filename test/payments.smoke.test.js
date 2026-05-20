@@ -444,7 +444,7 @@ test("verifyPayment returns 400 for invalid transition (pending → paid)", asyn
 
 test("rejectPayment transitions submitted → failed", async () => {
   const calls = {};
-  const failedRow = mockPaymentRow({ status_name: "failed" });
+  const failedRow = mockPaymentRow({ status_name: "failed", rejection_reason: "Blurry receipt image" });
 
   const { service, restore } = loadPaymentService({
     findPaymentById: async () => {
@@ -464,10 +464,7 @@ test("rejectPayment transitions submitted → failed", async () => {
   try {
     const result = await service.rejectPayment(1, 1, "Blurry receipt image");
     assert.equal(calls.targetStatus, "failed");
-    assert.equal(
-      calls.updatePaymentStatus.extra.transaction_reference,
-      "Blurry receipt image"
-    );
+    assert.equal(calls.updatePaymentStatus.extra.rejection_reason, "Blurry receipt image");
     assert.equal(result.payment_status, "failed");
   } finally {
     restore();
@@ -570,6 +567,29 @@ test("getPaymentById allows owner to view payment for their property", async () 
   }
 });
 
+test("getPaymentById allows admin to retrieve payment proof data", async () => {
+  const { service, restore } = loadPaymentService({
+    findPaymentById: async () => mockPaymentRow({
+      id: 1,
+      status_name: "submitted",
+      receipt_image_url: "/uploads/receipts/test.jpg",
+      rejection_reason: null,
+      verified_at: null,
+      paid_at: null,
+      verified_by: null,
+      verified_by_name: null,
+    }),
+  });
+
+  try {
+    const result = await service.getPaymentById(1, 1, "admin");
+    assert.equal(result.receipt_image_url, "/uploads/receipts/test.jpg");
+    assert.equal(result.payment_status, "submitted");
+  } finally {
+    restore();
+  }
+});
+
 // ─── Service: getMyPayments ────────────────────────────────────────
 
 test("getMyPayments returns list of customer payments", async () => {
@@ -578,7 +598,7 @@ test("getMyPayments returns list of customer payments", async () => {
     mockPaymentRow({ id: 2, status_name: "submitted" }),
   ];
   const { service, restore } = loadPaymentService({
-    findPaymentsByCustomer: async (cid, filters) => {
+    findPaymentsByCustomer: async (cid, _filters) => {
       assert.equal(cid, 10);
       return rows;
     },

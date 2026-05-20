@@ -10,6 +10,7 @@ const PAYMENT_SELECT = `
     pay.amount,
     pay.currency,
     pay.transaction_reference,
+    pay.rejection_reason,
     pay.receipt_image_url,
     pay.verified_at,
     pay.paid_at,
@@ -186,6 +187,10 @@ const updatePaymentStatus = async (paymentId, statusId, extraFields = {}) => {
   if (Object.hasOwn(extraFields, "transaction_reference")) {
     sets.push("transaction_reference = ?");
     params.push(extraFields.transaction_reference);
+  }
+  if (Object.hasOwn(extraFields, "rejection_reason")) {
+    sets.push("rejection_reason = ?");
+    params.push(extraFields.rejection_reason);
   }
 
   params.push(paymentId);
