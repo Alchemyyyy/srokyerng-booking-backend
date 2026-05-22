@@ -353,7 +353,7 @@ const deletePropertyImage = async (propertyId, imageId, userId) => {
   }
 
   // delete physical file
-  const filePath = path.join(__dirname, "../../uploads/properties", image.image_url);
+  const filePath = path.join(__dirname, "../../..", image.image_url);
 
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);

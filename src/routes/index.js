@@ -9,6 +9,7 @@ const reviewRoutes = require("../modules/reviews/review.routes");
 const adminRoutes = require("../modules/admin/admin.routes");
 const amenityRoutes = require("../modules/amenities/amenity.routes");
 const paymentRoutes = require("../modules/payments/payment.routes");
+const roomRoutes = require("../modules/rooms/room.routes");
 
 const router = express.Router();
 
@@ -27,6 +28,7 @@ router.use("/reservations", reservationRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/admin", adminRoutes);
 router.use("/amenities", amenityRoutes);
-router.use("/payments", paymentRoutes); 
+router.use("/payments", paymentRoutes);
+router.use("/rooms", roomRoutes);
 
 module.exports = router;

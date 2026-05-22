@@ -80,4 +80,19 @@ router.patch(
   propertyController.sortPropertyImages
 );
 
+router.get("/:propertyId/rooms", propertyController.getPropertyRooms);
+router.post(
+  "/:propertyId/rooms",
+  authMiddleware,
+  roleMiddleware(role.OWNER),
+  propertyController.createRoom
+);
+
+router.get(
+  "/:propertyId/rooms/my",
+  authMiddleware,
+  roleMiddleware(role.OWNER),
+  propertyController.getPropertyRooms
+);
+
 module.exports = router;
