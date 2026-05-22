@@ -128,6 +128,13 @@ const updatePassword = async (userId, passwordHash) => {
   ]);
 };
 
+const updateProfileImage = async (userId, profileImageUrl) => {
+  await pool.query("UPDATE users SET profile_image_url = ? WHERE id = ?", [
+    profileImageUrl,
+    userId,
+  ]);
+};
+
 const updateStatus = async (userId, statusId) => {
   await pool.query("UPDATE users SET status_id = ? WHERE id = ?", [statusId, userId]);
 };
@@ -139,5 +146,6 @@ module.exports = {
   findStatusByName,
   updateProfile,
   updatePassword,
+  updateProfileImage,
   updateStatus,
 };

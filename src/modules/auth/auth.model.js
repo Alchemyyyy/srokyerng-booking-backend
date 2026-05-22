@@ -131,11 +131,18 @@ const updatePassword = async (userId, passwordHash) => {
   ]);
 };
 
-const createRefreshToken = async ({ userId, tokenHash, expiresAt }) => {
+const createRefreshToken = async ({
+  userId,
+  tokenHash,
+  userAgent,
+  ipAddress,
+  expiresAt,
+}) => {
   const [result] = await pool.query(
-    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-     VALUES (?, ?, ?)`,
-    [userId, tokenHash, expiresAt]
+    `INSERT INTO refresh_tokens
+      (user_id, token_hash, user_agent, ip_address, expires_at, last_used_at)
+     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [userId, tokenHash, userAgent || null, ipAddress || null, expiresAt]
   );
 
   return result.insertId;
@@ -187,6 +194,98 @@ const revokeRefreshTokensForUser = async (userId) => {
   );
 };
 
+const findActiveRefreshTokensByUserId = async (userId) => {
+  const [rows] = await pool.query(
+    `SELECT
+      id,
+      user_agent,
+      ip_address,
+      expires_at,
+      last_used_at,
+      created_at
+     FROM refresh_tokens
+     WHERE user_id = ?
+       AND revoked_at IS NULL
+       AND expires_at > CURRENT_TIMESTAMP
+     ORDER BY last_used_at DESC, created_at DESC`,
+    [userId]
+  );
+
+  return rows;
+};
+
+const revokeRefreshTokenByIdForUser = async (tokenId, userId) => {
+  const [result] = await pool.query(
+    `UPDATE refresh_tokens
+     SET revoked_at = CURRENT_TIMESTAMP
+     WHERE id = ?
+       AND user_id = ?
+       AND revoked_at IS NULL`,
+    [tokenId, userId]
+  );
+
+  return result.affectedRows;
+};
+
+const markUnusedEmailVerificationTokensAsUsed = async (userId) => {
+  await pool.query(
+    `UPDATE email_verification_tokens
+     SET used_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?
+       AND used_at IS NULL`,
+    [userId]
+  );
+};
+
+const createEmailVerificationToken = async ({ userId, tokenHash, expiresAt }) => {
+  const [result] = await pool.query(
+    `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+     VALUES (?, ?, ?)`,
+    [userId, tokenHash, expiresAt]
+  );
+
+  return result.insertId;
+};
+
+const findValidEmailVerificationToken = async (tokenHash) => {
+  const [rows] = await pool.query(
+    `SELECT
+      email_verification_tokens.*,
+      users.email,
+      users.full_name,
+      users.email_verified_at,
+      roles.role_name,
+      account_statuses.status_name
+     FROM email_verification_tokens
+     JOIN users ON email_verification_tokens.user_id = users.id
+     JOIN roles ON users.role_id = roles.id
+     JOIN account_statuses ON users.status_id = account_statuses.id
+     WHERE email_verification_tokens.token_hash = ?
+       AND email_verification_tokens.used_at IS NULL
+       AND email_verification_tokens.expires_at > CURRENT_TIMESTAMP
+     LIMIT 1`,
+    [tokenHash]
+  );
+
+  return rows[0];
+};
+
+const markEmailVerificationTokenAsUsed = async (tokenId) => {
+  await pool.query(
+    "UPDATE email_verification_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?",
+    [tokenId]
+  );
+};
+
+const markEmailAsVerified = async (userId) => {
+  await pool.query(
+    `UPDATE users
+     SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP)
+     WHERE id = ?`,
+    [userId]
+  );
+};
+
 module.exports = {
   findRoleByName,
   findStatusByName,
@@ -203,4 +302,11 @@ module.exports = {
   findValidRefreshToken,
   revokeRefreshToken,
   revokeRefreshTokensForUser,
+  findActiveRefreshTokensByUserId,
+  revokeRefreshTokenByIdForUser,
+  markUnusedEmailVerificationTokensAsUsed,
+  createEmailVerificationToken,
+  findValidEmailVerificationToken,
+  markEmailVerificationTokenAsUsed,
+  markEmailAsVerified,
 };

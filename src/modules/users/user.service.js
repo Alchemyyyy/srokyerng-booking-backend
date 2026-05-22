@@ -89,6 +89,23 @@ const changeMyPassword = async (userId, { current_password, new_password }) => {
   await userModel.updatePassword(userId, passwordHash);
 };
 
+const updateMyProfileImage = async (userId, file) => {
+  await ensureActiveUser(userId);
+
+  if (!file) {
+    const error = new Error("Profile image file is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const profileImageUrl = `/uploads/profiles/${file.filename}`;
+  await userModel.updateProfileImage(userId, profileImageUrl);
+
+  const updatedUser = await ensureActiveUser(userId);
+
+  return toSafeUser(updatedUser);
+};
+
 const listUsers = async ({ role, status, search, page, limit }) => {
   const offset = (page - 1) * limit;
   const [users, total] = await Promise.all([
@@ -155,6 +172,7 @@ module.exports = {
   getMyProfile,
   updateMyProfile,
   changeMyPassword,
+  updateMyProfileImage,
   listUsers,
   getUserById,
   updateUserStatus,

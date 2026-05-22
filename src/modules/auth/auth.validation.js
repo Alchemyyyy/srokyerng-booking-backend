@@ -73,6 +73,13 @@ const refreshTokenSchema = Joi.object({
   }),
 });
 
+const verifyEmailSchema = Joi.object({
+  token: Joi.string().trim().required().messages({
+    "any.required": "Verification token is required",
+    "string.empty": "Verification token is required",
+  }),
+});
+
 const formatErrors = (error) => {
   return error ? error.details.map((detail) => detail.message) : [];
 };
@@ -102,6 +109,11 @@ const normalizeRefreshTokenBody = (body = {}) => {
   return value;
 };
 
+const normalizeVerifyEmailBody = (body = {}) => {
+  const { value } = verifyEmailSchema.validate(body, validationOptions);
+  return value;
+};
+
 const validateRegister = (body) => {
   const { error } = registerSchema.validate(body, validationOptions);
   return formatErrors(error);
@@ -127,15 +139,22 @@ const validateRefreshToken = (body) => {
   return formatErrors(error);
 };
 
+const validateVerifyEmail = (body) => {
+  const { error } = verifyEmailSchema.validate(body, validationOptions);
+  return formatErrors(error);
+};
+
 module.exports = {
   validateRegister,
   validateLogin,
   validateForgotPassword,
   validateResetPassword,
   validateRefreshToken,
+  validateVerifyEmail,
   normalizeRegisterBody,
   normalizeLoginBody,
   normalizeForgotPasswordBody,
   normalizeResetPasswordBody,
   normalizeRefreshTokenBody,
+  normalizeVerifyEmailBody,
 };

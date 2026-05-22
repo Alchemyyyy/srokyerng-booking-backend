@@ -190,6 +190,62 @@ test("user service updates profile fields and allows clearing optional values", 
   }
 });
 
+test("user service updates profile image", async () => {
+  const calls = {};
+  let readCount = 0;
+  const { userService, restore } = loadUserService({
+    userModel: {
+      findUserById: async () => {
+        readCount += 1;
+        return readCount === 1
+          ? createUserRow()
+          : createUserRow({
+              profile_image_url: "/uploads/profiles/profile-test.jpg",
+            });
+      },
+      updateProfileImage: async (userId, profileImageUrl) => {
+        calls.updateProfileImage = { userId, profileImageUrl };
+      },
+    },
+    hashPassword: async () => "new-hash",
+    comparePassword: async () => true,
+  });
+
+  try {
+    const user = await userService.updateMyProfileImage(1, {
+      filename: "profile-test.jpg",
+    });
+
+    assert.deepEqual(calls.updateProfileImage, {
+      userId: 1,
+      profileImageUrl: "/uploads/profiles/profile-test.jpg",
+    });
+    assert.equal(user.profile_image_url, "/uploads/profiles/profile-test.jpg");
+  } finally {
+    restore();
+  }
+});
+
+test("user service rejects profile image update without file", async () => {
+  const { userService, restore } = loadUserService({
+    userModel: {
+      findUserById: async () => createUserRow(),
+    },
+    hashPassword: async () => "new-hash",
+    comparePassword: async () => true,
+  });
+
+  try {
+    await assert.rejects(userService.updateMyProfileImage(1, null), (error) => {
+      assert.equal(error.message, "Profile image file is required");
+      assert.equal(error.statusCode, 400);
+      return true;
+    });
+  } finally {
+    restore();
+  }
+});
+
 test("user service lists users with pagination metadata", async () => {
   const calls = {};
   const { userService, restore } = loadUserService({

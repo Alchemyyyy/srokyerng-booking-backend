@@ -4,10 +4,15 @@ const { hashPassword, comparePassword } = require("../../utils/hashPassword");
 const generateToken = require("../../utils/generateToken");
 const { USER_STATUS } = require("../../constants/statuses");
 const env = require("../../config/env");
-const { sendPasswordResetEmail } = require("../../utils/email");
+const {
+  sendPasswordResetEmail,
+  sendEmailVerificationEmail,
+} = require("../../utils/email");
 
 const PASSWORD_RESET_TOKEN_BYTES = 32;
 const PASSWORD_RESET_EXPIRES_MS = 60 * 60 * 1000;
+const EMAIL_VERIFICATION_TOKEN_BYTES = 32;
+const EMAIL_VERIFICATION_EXPIRES_MS = 24 * 60 * 60 * 1000;
 const REFRESH_TOKEN_BYTES = 48;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -36,7 +41,7 @@ const createAccessToken = (user) => {
   });
 };
 
-const createAndStoreRefreshToken = async (userId) => {
+const createAndStoreRefreshToken = async (userId, metadata = {}) => {
   const refreshToken = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString("hex");
   const tokenHash = hashToken(refreshToken);
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_EXPIRES_DAYS * MS_PER_DAY);
@@ -44,10 +49,33 @@ const createAndStoreRefreshToken = async (userId) => {
   await authModel.createRefreshToken({
     userId,
     tokenHash,
+    userAgent: metadata.userAgent,
+    ipAddress: metadata.ipAddress,
     expiresAt,
   });
 
   return refreshToken;
+};
+
+const createAndSendEmailVerification = async (user) => {
+  const token = crypto.randomBytes(EMAIL_VERIFICATION_TOKEN_BYTES).toString("hex");
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_EXPIRES_MS);
+  const verificationUrl = `${env.FRONTEND_URL}/verify-email?token=${encodeURIComponent(
+    token
+  )}`;
+
+  await authModel.markUnusedEmailVerificationTokensAsUsed(user.id);
+  await authModel.createEmailVerificationToken({
+    userId: user.id,
+    tokenHash,
+    expiresAt,
+  });
+  await sendEmailVerificationEmail({
+    to: user.email,
+    fullName: user.full_name,
+    verificationUrl,
+  });
 };
 
 const register = async ({ full_name, email, password, phone, role }) => {
@@ -79,6 +107,12 @@ const register = async ({ full_name, email, password, phone, role }) => {
     passwordHash,
   });
 
+  await createAndSendEmailVerification({
+    id: userId,
+    full_name,
+    email,
+  });
+
   return {
     id: userId,
     full_name,
@@ -88,7 +122,7 @@ const register = async ({ full_name, email, password, phone, role }) => {
   };
 };
 
-const login = async ({ email, password }) => {
+const login = async ({ email, password }, metadata = {}) => {
   const user = await authModel.findUserByEmail(email);
 
   if (!user) {
@@ -114,7 +148,7 @@ const login = async ({ email, password }) => {
   await authModel.updateLastLogin(user.id);
 
   const accessToken = createAccessToken(user);
-  const refreshToken = await createAndStoreRefreshToken(user.id);
+  const refreshToken = await createAndStoreRefreshToken(user.id, metadata);
 
   return {
     access_token: accessToken,
@@ -143,6 +177,50 @@ const getCurrentUser = async (userId) => {
 
 const getPasswordResetSuccessMessage = () => {
   return "If an account exists for this email, a password reset link has been sent";
+};
+
+const verifyEmail = async ({ token }) => {
+  const tokenHash = hashToken(token);
+  const verificationToken = await authModel.findValidEmailVerificationToken(tokenHash);
+
+  if (!verificationToken) {
+    const error = new Error("Invalid or expired email verification token");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (verificationToken.status_name !== USER_STATUS.ACTIVE) {
+    const error = new Error("Your account is not active");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  await authModel.markEmailAsVerified(verificationToken.user_id);
+  await authModel.markEmailVerificationTokenAsUsed(verificationToken.id);
+};
+
+const resendVerificationEmail = async (userId) => {
+  const user = await authModel.findUserById(userId);
+
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (user.status_name !== USER_STATUS.ACTIVE) {
+    const error = new Error("Your account is not active");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (user.email_verified_at) {
+    const error = new Error("Email is already verified");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  await createAndSendEmailVerification(user);
 };
 
 const forgotPassword = async ({ email }) => {
@@ -194,7 +272,7 @@ const resetPassword = async ({ token, password }) => {
   await authModel.revokeRefreshTokensForUser(resetToken.user_id);
 };
 
-const refreshToken = async ({ refresh_token }) => {
+const refreshToken = async ({ refresh_token }, metadata = {}) => {
   const tokenHash = hashToken(refresh_token);
   const storedToken = await authModel.findValidRefreshToken(tokenHash);
 
@@ -210,11 +288,18 @@ const refreshToken = async ({ refresh_token }) => {
     throw error;
   }
 
+  await authModel.revokeRefreshToken(tokenHash);
+  const nextRefreshToken = await createAndStoreRefreshToken(
+    storedToken.user_id,
+    metadata
+  );
+
   return {
     access_token: createAccessToken({
       id: storedToken.user_id,
       role_name: storedToken.role_name,
     }),
+    refresh_token: nextRefreshToken,
     user: toSafeUser({
       ...storedToken,
       id: storedToken.user_id,
@@ -228,13 +313,36 @@ const logout = async ({ refresh_token }) => {
   await authModel.revokeRefreshToken(tokenHash);
 };
 
+const logoutAll = async (userId) => {
+  await authModel.revokeRefreshTokensForUser(userId);
+};
+
+const listSessions = async (userId) => {
+  return authModel.findActiveRefreshTokensByUserId(userId);
+};
+
+const revokeSession = async (userId, sessionId) => {
+  const affectedRows = await authModel.revokeRefreshTokenByIdForUser(sessionId, userId);
+
+  if (affectedRows === 0) {
+    const error = new Error("Session not found");
+    error.statusCode = 404;
+    throw error;
+  }
+};
+
 module.exports = {
   register,
   login,
   getCurrentUser,
+  verifyEmail,
+  resendVerificationEmail,
   forgotPassword,
   resetPassword,
   refreshToken,
   logout,
+  logoutAll,
+  listSessions,
+  revokeSession,
   getPasswordResetSuccessMessage,
 };
