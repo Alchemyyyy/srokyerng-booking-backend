@@ -3,6 +3,7 @@ const asyncHandler = require("../../utils/asyncHandler");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
 const property = require("./property.service");
+const room = require("../rooms/room.service");
 
 const getAll = asyncHandler(async (req, res) => {
   let result = await property.getAllApproved(req.query);
@@ -118,6 +119,36 @@ const sortPropertyImages = asyncHandler(async (req, res) => {
   return successResponse(res, result.message, result.data, result.status);
 });
 
+const getPropertyRooms = asyncHandler(async (req, res) => {
+  let result = await room.getPropertyRooms(req.params.propertyId);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const createRoom = asyncHandler(async (req, res) => {
+  let result = await room.createRoom(req.params.propertyId, req.user.id, req.body);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const getMyRooms = asyncHandler(async (req, res) => {
+  let result = await room.getMyRooms(req.params.propertyId, req.user.id);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
 module.exports = {
   getAll,
   getDetail,
@@ -131,4 +162,7 @@ module.exports = {
   deletePropertyImage,
   setCoverImage,
   sortPropertyImages,
+  getPropertyRooms,
+  createRoom,
+  getMyRooms,
 };
