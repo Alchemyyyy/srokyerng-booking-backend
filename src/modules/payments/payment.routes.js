@@ -77,6 +77,13 @@ router.get(
   paymentController.getMyPayments
 );
 
+router.get(
+  "/reservation/:id/owner-payment-accounts",
+  authMiddleware,
+  roleMiddleware(ROLES.CUSTOMER),
+  paymentController.getReservationOwnerPaymentAccounts
+);
+
 // GET /:id must come AFTER /my to avoid route conflict
 router.post(
   "/:id/proof",

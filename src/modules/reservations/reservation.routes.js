@@ -8,9 +8,6 @@ const ROLES = require("../../constants/roles");
 
 const router = express.Router();
 
-router.get("/availability", reservationController.checkAvailability);
-
-
 // All reservation routes require authentication
 router.use(authMiddleware);
 

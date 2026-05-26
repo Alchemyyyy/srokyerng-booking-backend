@@ -320,6 +320,7 @@ CREATE TABLE payments (
     owner_id INT NOT NULL,
 
     payment_method_id INT NOT NULL,
+    owner_payment_account_id INT NULL,
     payment_status_id INT NOT NULL,
 
     amount DECIMAL(10,2) NOT NULL,
@@ -346,6 +347,9 @@ CREATE TABLE payments (
 
     CONSTRAINT fk_payments_method
         FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id),
+
+    CONSTRAINT fk_payments_owner_account
+        FOREIGN KEY (owner_payment_account_id) REFERENCES owner_payment_accounts(id),
 
     CONSTRAINT fk_payments_status
         FOREIGN KEY (payment_status_id) REFERENCES payment_statuses(id),

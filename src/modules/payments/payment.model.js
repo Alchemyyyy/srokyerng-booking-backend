@@ -41,10 +41,17 @@ const PAYMENT_SELECT = `
     p.property_name,
     p.id          AS property_id,
 
+    -- selected owner payment account
+    opa.id        AS owner_payment_account_id,
+    opa.account_name,
+    opa.account_number,
+    opa.qr_image_url,
+
     -- admin who verified
     pay.verified_by,
     adm.full_name AS verified_by_name
   FROM payments pay
+  LEFT JOIN owner_payment_accounts opa ON pay.owner_payment_account_id = opa.id
   JOIN payment_methods  pm  ON pay.payment_method_id  = pm.id
   JOIN payment_statuses ps  ON pay.payment_status_id  = ps.id
   JOIN users            cu  ON pay.customer_id        = cu.id
@@ -79,6 +86,37 @@ const findPaymentMethodById = async (methodId) => {
   return rows[0];
 };
 
+const findOwnerPaymentAccountById = async (accountId) => {
+  const [rows] = await pool.query(
+    `SELECT opa.*, pm.method_name
+     FROM owner_payment_accounts opa
+     JOIN payment_methods pm ON opa.payment_method_id = pm.id
+     WHERE opa.id = ? AND opa.is_active = TRUE
+     LIMIT 1`,
+    [accountId]
+  );
+  return rows[0];
+};
+
+const findActiveOwnerPaymentAccountsByOwnerId = async (ownerId) => {
+  const [rows] = await pool.query(
+    `SELECT opa.id,
+            opa.owner_id,
+            opa.payment_method_id,
+            pm.method_name,
+            opa.account_name,
+            opa.account_number,
+            opa.qr_image_url
+     FROM owner_payment_accounts opa
+     JOIN payment_methods pm ON opa.payment_method_id = pm.id
+     WHERE opa.owner_id = ? AND opa.is_active = TRUE
+     ORDER BY opa.created_at DESC`,
+    [ownerId]
+  );
+  
+  return rows;
+};
+
 const findPaymentStatusByName = async (statusName) => {
   const [rows] = await pool.query(
     "SELECT * FROM payment_statuses WHERE status_name = ? LIMIT 1",
@@ -102,6 +140,7 @@ const createPayment = async ({
   customerId,
   ownerId,
   paymentMethodId,
+  ownerPaymentAccountId,
   paymentStatusId,
   amount,
   transactionReference,
@@ -109,14 +148,15 @@ const createPayment = async ({
   const [result] = await pool.query(
     `INSERT INTO payments
        (reservation_id, customer_id, owner_id,
-        payment_method_id, payment_status_id,
+        payment_method_id, owner_payment_account_id, payment_status_id,
         amount, currency, transaction_reference)
-     VALUES (?, ?, ?, ?, ?, ?, 'USD', ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'USD', ?)`,
     [
       reservationId,
       customerId,
       ownerId,
       paymentMethodId,
+      ownerPaymentAccountId || null,
       paymentStatusId,
       amount,
       transactionReference || null,
@@ -139,6 +179,28 @@ const findPaymentsByCustomer = async (customerId, filters = {}) => {
   if (filters.status) {
     query += " AND ps.status_name = ?";
     params.push(filters.status);
+  }
+
+  query += " ORDER BY pay.created_at DESC";
+  const [rows] = await pool.query(query, params);
+  return rows;
+};
+
+const findPaymentsByOwner = async (ownerId, filters = {}) => {
+  let query = `${PAYMENT_SELECT} WHERE pay.owner_id = ?`;
+  const params = [ownerId];
+
+  if (filters.status) {
+    query += " AND ps.status_name = ?";
+    params.push(filters.status);
+  }
+  if (filters.customer_id) {
+    query += " AND pay.customer_id = ?";
+    params.push(filters.customer_id);
+  }
+  if (filters.reservation_id) {
+    query += " AND pay.reservation_id = ?";
+    params.push(filters.reservation_id);
   }
 
   query += " ORDER BY pay.created_at DESC";
@@ -215,11 +277,14 @@ const updateReceiptUrl = async (paymentId, receiptImageUrl, statusId) => {
 module.exports = {
   findReservationById,
   findPaymentMethodById,
+  findOwnerPaymentAccountById,
+  findActiveOwnerPaymentAccountsByOwnerId,
   findPaymentStatusByName,
   findExistingPaymentForReservation,
   createPayment,
   findPaymentById,
   findPaymentsByCustomer,
+  findPaymentsByOwner,
   findAllPayments,
   updatePaymentStatus,
   updateReceiptUrl,

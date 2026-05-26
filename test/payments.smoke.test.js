@@ -417,9 +417,9 @@ test("verifyPayment transitions submitted → paid", async () => {
   });
 
   try {
-    const result = await service.verifyPayment(1, 1);
+    const result = await service.verifyPayment(20, 1);
     assert.equal(calls.targetStatus, "paid");
-    assert.equal(calls.updatePaymentStatus.extra.verified_by, 1);
+    assert.equal(calls.updatePaymentStatus.extra.verified_by, 20);
     assert.ok(calls.updatePaymentStatus.extra.paid_at instanceof Date);
     assert.equal(result.payment_status, "paid");
   } finally {
@@ -433,7 +433,7 @@ test("verifyPayment returns 400 for invalid transition (pending → paid)", asyn
   });
 
   try {
-    await assert.rejects(service.verifyPayment(1, 1), (err) => {
+    await assert.rejects(service.verifyPayment(20, 1), (err) => {
       assert.equal(err.statusCode, 400);
       return true;
     });
@@ -465,7 +465,7 @@ test("rejectPayment transitions submitted → failed", async () => {
   });
 
   try {
-    const result = await service.rejectPayment(1, 1, "Blurry receipt image");
+    const result = await service.rejectPayment(20, 1, "Blurry receipt image");
     assert.equal(calls.targetStatus, "failed");
     assert.equal(
       calls.updatePaymentStatus.extra.rejection_reason,
@@ -494,9 +494,9 @@ test("refundPayment transitions paid → refunded", async () => {
   });
 
   try {
-    const result = await service.refundPayment(1, 1);
+    const result = await service.refundPayment(20, 1);
     assert.equal(result.payment_status, "refunded");
-    assert.equal(calls.updatePaymentStatus.extra.verified_by, 1);
+    assert.equal(calls.updatePaymentStatus.extra.verified_by, 20);
   } finally {
     restore();
   }
@@ -508,7 +508,7 @@ test("refundPayment returns 400 when payment is not paid", async () => {
   });
 
   try {
-    await assert.rejects(service.refundPayment(1, 1), (err) => {
+    await assert.rejects(service.refundPayment(20, 1), (err) => {
       assert.equal(err.statusCode, 400);
       return true;
     });

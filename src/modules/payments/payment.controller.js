@@ -35,6 +35,38 @@ const getMyPayments = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/payments/reservation/:id/owner-payment-accounts
+ * Customer only — list active payment accounts for the reservation owner.
+ */
+const getReservationOwnerPaymentAccounts = asyncHandler(async (req, res) => {
+  const reservationId = parseInt(req.params.id, 10);
+  if (isNaN(reservationId) || reservationId <= 0) {
+    return errorResponse(res, "Invalid reservation ID", 400);
+  }
+
+  const accounts = await paymentService.getReservationOwnerPaymentAccounts(
+    req.user.id,
+    reservationId
+  );
+  return successResponse(res, "Owner payment accounts retrieved successfully", accounts);
+});
+
+/**
+ * GET /api/owner/payments
+ * Owner only — list payments for own properties.
+ */
+const getOwnerPayments = asyncHandler(async (req, res) => {
+  const { status, customer_id, reservation_id } = req.query;
+  const filters = {};
+  if (status) filters.status = status;
+  if (customer_id) filters.customer_id = parseInt(customer_id);
+  if (reservation_id) filters.reservation_id = parseInt(reservation_id);
+
+  const payments = await paymentService.getOwnerPayments(req.user.id, filters);
+  return successResponse(res, "Owner payments retrieved successfully", payments);
+});
+
+/**
  * GET /api/payments/:id
  * Customer (own), owner (own property), admin.
  */
@@ -85,15 +117,10 @@ const getPaymentProof = asyncHandler(async (req, res) => {
  * multer is applied in the route layer so `req.file` is available here.
  */
 const uploadReceipt = asyncHandler(async (req, res) => {
-  console.log(req.user.id);
-  console.log(req.file);
-  
   const paymentId = parseInt(req.params.id, 10);
   if (isNaN(paymentId) || paymentId <= 0) {
     return errorResponse(res, "Invalid payment ID", 400);
   }
-  console.log(paymentId);
-  
 
   const payment = await paymentService.uploadReceipt(req.user.id, paymentId, req.file);
   return successResponse(res, "Receipt uploaded successfully", payment);
@@ -117,8 +144,8 @@ const getAllPayments = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/admin/payments/:id/verify
- * Admin only — mark payment as paid.
+ * PATCH /api/owner/payments/:id/verify
+ * Owner only — verify payment for own property.
  */
 const verifyPayment = asyncHandler(async (req, res) => {
   const paymentId = parseInt(req.params.id, 10);
@@ -136,8 +163,8 @@ const verifyPayment = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/admin/payments/:id/reject
- * Admin only — mark payment as failed, requires reason.
+ * PATCH /api/owner/payments/:id/reject
+ * Owner only — reject payment for own property.
  */
 const rejectPayment = asyncHandler(async (req, res) => {
   const paymentId = parseInt(req.params.id, 10);
@@ -159,8 +186,8 @@ const rejectPayment = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/admin/payments/:id/refund
- * Admin only — mark payment as refunded.
+ * PATCH /api/owner/payments/:id/refund
+ * Owner only — refund payment for own property.
  */
 const refundPayment = asyncHandler(async (req, res) => {
   const paymentId = parseInt(req.params.id, 10);
@@ -183,12 +210,31 @@ const refundPayment = asyncHandler(async (req, res) => {
  */
 const getPendingVerificationPayments = asyncHandler(async (_req, res) => {
   const payments = await paymentService.getPaymentsPendingVerification();
-  return successResponse(res, "Pending verification payments retrieved successfully", payments);
+  return successResponse(
+    res,
+    "Pending verification payments retrieved successfully",
+    payments
+  );
+});
+
+/**
+ * GET /api/owner/payments/pending-verification
+ * Owner only — list payments in `submitted` status for the authenticated owner.
+ */
+const getOwnerPendingVerificationPayments = asyncHandler(async (req, res) => {
+  const payments = await paymentService.getOwnerPaymentsPendingVerification(req.user.id);
+  return successResponse(
+    res,
+    "Owner pending verification payments retrieved successfully",
+    payments
+  );
 });
 
 module.exports = {
   createPayment,
   getMyPayments,
+  getReservationOwnerPaymentAccounts,
+  getOwnerPayments,
   getPaymentById,
   getPaymentProof,
   uploadReceipt,
@@ -197,4 +243,5 @@ module.exports = {
   rejectPayment,
   refundPayment,
   getPendingVerificationPayments,
+  getOwnerPendingVerificationPayments,
 };

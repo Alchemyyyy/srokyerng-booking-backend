@@ -12,6 +12,10 @@ const createPaymentSchema = Joi.object({
     "number.base": "Payment method ID must be a number",
     "number.positive": "Payment method ID must be positive",
   }),
+  owner_payment_account_id: Joi.number().integer().positive().optional().messages({
+    "number.base": "Owner payment account ID must be a number",
+    "number.positive": "Owner payment account ID must be positive",
+  }),
   transaction_reference: Joi.string().trim().max(255).allow("", null).optional(),
 });
 

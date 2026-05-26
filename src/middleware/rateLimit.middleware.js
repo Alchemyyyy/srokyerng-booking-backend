@@ -9,7 +9,7 @@ const createRateLimitHandler = (message) => {
 
 const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 5,
+  limit: 100,
   standardHeaders: true,
   legacyHeaders: false,
   handler: createRateLimitHandler("Too many login attempts. Please try again later"),

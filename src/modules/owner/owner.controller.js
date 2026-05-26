@@ -75,6 +75,7 @@ const getReservations = asyncHandler(async (req, res) => {
  * @access Owner only
  */
 const getPayments = asyncHandler(async (req, res) => {
+  
   // Import payment service (when implemented)
   return successResponse(res, "Owner payments endpoint ready", {
     message: "Connect to paymentService.getOwnerPayments()",
