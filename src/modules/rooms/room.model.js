@@ -185,15 +185,75 @@ const getRoomImagesByRoomId = async (roomId) => {
 };
 
 const getRoomTypes = async () => {
+  const [rows] = await pool.query("SELECT * FROM room_types");
+
+  return rows;
+};
+
+const getRoomImages = async (roomId) => {
   const [rows] = await pool.query(
     `
-    SELECT *
-    FROM room_types
-    ORDER BY type_name ASC
-    `
+    SELECT
+      id,
+      room_id,
+      image_url,
+      is_cover,
+      sort_order,
+      created_at
+    FROM room_images
+    WHERE room_id = ?
+    ORDER BY sort_order ASC, id ASC
+    `,
+    [roomId]
   );
 
   return rows;
+};
+
+const getRoomImageById = async (imageId) => {
+  const [rows] = await pool.query(
+    `
+    SELECT *
+    FROM room_images
+    WHERE id = ?
+    `,
+    [imageId]
+  );
+
+  return rows[0];
+};
+
+const clearRoomCoverImages = async (roomId) => {
+  await pool.query(
+    `
+    UPDATE room_images
+    SET is_cover = FALSE
+    WHERE room_id = ?
+    `,
+    [roomId]
+  );
+};
+
+const setRoomCoverImage = async (imageId) => {
+  await pool.query(
+    `
+    UPDATE room_images
+    SET is_cover = TRUE
+    WHERE id = ?
+    `,
+    [imageId]
+  );
+};
+
+const updateRoomImageSortOrder = async (imageId, sort_order) => {
+  await pool.query(
+    `
+    UPDATE room_images
+    SET sort_order = ?
+    WHERE id = ?
+    `,
+    [sort_order, imageId]
+  );
 };
 
 module.exports = {
@@ -208,4 +268,9 @@ module.exports = {
   findRoomImageById,
   getRoomImagesByRoomId,
   getRoomTypes,
+  getRoomImages,
+  getRoomImageById,
+  clearRoomCoverImages,
+  setRoomCoverImage,
+  updateRoomImageSortOrder,
 };

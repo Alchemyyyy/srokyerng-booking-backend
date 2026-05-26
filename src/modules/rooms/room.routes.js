@@ -12,9 +12,9 @@ const router = express.Router();
 
 // PUBLIC
 
-router.get("/:id", roomController.getRoomDetail);
+router.get("/room-types", roomController.getRoomTypes);
 
-router.get("/types/all", roomController.getRoomTypes);
+router.get("/:id", roomController.getRoomDetail);
 
 // OWNER
 
@@ -45,6 +45,22 @@ router.delete(
   authMiddleware,
   roleMiddleware(role.OWNER),
   roomController.deleteRoomImage
+);
+
+router.get("/:roomId/images", roomController.getRoomImages);
+
+router.patch(
+  "/:roomId/images/:imageId/cover",
+  authMiddleware,
+  roleMiddleware(role.OWNER),
+  roomController.setRoomCoverImage
+);
+
+router.patch(
+  "/:roomId/images/sort",
+  authMiddleware,
+  roleMiddleware(role.OWNER),
+  roomController.sortRoomImages
 );
 
 module.exports = router;

@@ -292,10 +292,6 @@ const deleteRoomImage = async (roomId, imageId, ownerId) => {
   // delete file
   const filePath = path.join(__dirname, "../../..", imageRow.image_url);
 
-  console.log(__dirname);
-  console.log(imageRow.image_url);
-  console.log(filePath);
-
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);
   }
@@ -314,11 +310,130 @@ const deleteRoomImage = async (roomId, imageId, ownerId) => {
 const getRoomTypes = async () => {
   const types = await room.getRoomTypes();
 
+  return types;
+};
+
+const getRoomImages = async (roomId) => {
+  const roomRow = await room.getRoomById(roomId);
+
+  if (!roomRow || roomRow.deleted_at) {
+    return {
+      result: false,
+      status: 404,
+      message: "Room not found",
+    };
+  }
+
+  const images = await room.getRoomImages(roomId);
+
   return {
-    status: 200,
     result: true,
-    message: "Room types fetched successfully",
-    data: types,
+    status: 200,
+    message: "Room images fetched successfully",
+    data: images,
+  };
+};
+
+const setRoomCoverImage = async (roomId, imageId, ownerId) => {
+  // check room
+  const roomRow = await room.getRoomById(roomId);
+
+  if (!roomRow || roomRow.deleted_at) {
+    return {
+      result: false,
+      status: 404,
+      message: "Room not found",
+    };
+  }
+
+  // check property ownership
+  const propertyRow = await property.findPropertyById(roomRow.property_id);
+
+  if (!propertyRow || propertyRow.owner_id !== ownerId) {
+    return {
+      result: false,
+      status: 403,
+      message: "You do not own this room",
+    };
+  }
+
+  // check image
+  const imageRow = await room.getRoomImageById(imageId);
+
+  if (!imageRow || imageRow.room_id != roomId) {
+    return {
+      result: false,
+      status: 404,
+      message: "Image not found",
+    };
+  }
+
+  // clear old cover
+  await room.clearRoomCoverImages(roomId);
+
+  // set new cover
+  await room.setRoomCoverImage(imageId);
+
+  return {
+    result: true,
+    status: 200,
+    message: "Room cover image updated successfully",
+    data: null,
+  };
+};
+
+const sortRoomImages = async (roomId, body, ownerId) => {
+  // check room
+  const roomRow = await room.getRoomById(roomId);
+
+  if (!roomRow || roomRow.deleted_at) {
+    return {
+      result: false,
+      status: 404,
+      message: "Room not found",
+    };
+  }
+
+  // check ownership
+  const propertyRow = await property.findPropertyById(roomRow.property_id);
+
+  if (!propertyRow || propertyRow.owner_id !== ownerId) {
+    return {
+      result: false,
+      status: 403,
+      message: "You do not own this room",
+    };
+  }
+
+  // validate body
+  if (!Array.isArray(body)) {
+    return {
+      result: false,
+      status: 400,
+      message: "Body must be array",
+    };
+  }
+
+  // update sort order
+  for (const item of body) {
+    const imageRow = await room.getRoomImageById(item.image_id);
+
+    if (!imageRow || imageRow.room_id != roomId) {
+      return {
+        result: false,
+        status: 404,
+        message: `Image ${item.image_id} not found`,
+      };
+    }
+
+    await room.updateRoomImageSortOrder(item.image_id, item.sort_order);
+  }
+
+  return {
+    result: true,
+    status: 200,
+    message: "Room image sort updated successfully",
+    data: null,
   };
 };
 
@@ -332,4 +447,7 @@ module.exports = {
   deleteRoomImage,
   getMyRooms,
   getRoomTypes,
+  getRoomImages,
+  setRoomCoverImage,
+  sortRoomImages,
 };
