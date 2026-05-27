@@ -29,7 +29,7 @@ success response:
 ## Get Property Amenities (Public)
 
 ```text
-GET /amenities/properties/:propertyId/amenities
+GET /properties/1/amenities
 ```
 Authentication: Not required.
 
@@ -52,7 +52,7 @@ success response:
 ## Update Property Amenities (Owner)
 
 ```text 
-PUT /amenities/properties/:propertyId/amenities
+PUT /properties/1/amenities
 ```
 
 Requires authentication.

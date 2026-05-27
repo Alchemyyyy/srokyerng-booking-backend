@@ -57,7 +57,8 @@ const getPropertyAmenities = asyncHandler(
 const updatePropertyAmenities = asyncHandler(
   async (req, res) => {
 
-    const userId = req.user.id;
+    // const userId = req.user.id;
+    const userId = req.user?.id || null;
 
     const propertyId =
       req.params.propertyId;
