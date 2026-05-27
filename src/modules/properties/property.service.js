@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const property = require("./property.model");
 
-const propertyValidate = require("./property.validation");
+const { createPropertySchema, updatePropertySchema } = require("./property.validation");
 
 const getAllApproved = async (query) => {
   const filters = {
@@ -23,22 +23,37 @@ const getAll = async () => {
 };
 
 const register = async (user_id, body) => {
-  let checkReq = propertyValidate.validateCreateProperty(body);
+  // joi validation
+  const validate = createPropertySchema.validate(body, {
+    abortEarly: false,
+  });
 
-  if (!checkReq.isValid) {
+  // validation error
+  if (validate.error) {
     return {
       result: false,
-      message: "Invalid any fields",
-      error: checkReq.errors,
-      status: 500,
+      message: "Invalid fields",
+      error: validate.error.details.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      })),
+      status: 400,
     };
   }
-  let row = await property.create(user_id, body);
+
+  // validated data
+  const value = validate.value;
+
+  // create property
+  let row = await property.create(user_id, value);
+
+  // get created property
   row = await property.getById(row.insertId);
+
   return {
     result: true,
     message: "Request successfully",
-    status: 200,
+    status: 201,
     data: row,
   };
 };
@@ -174,16 +189,30 @@ const getMyPropertyById = async (property_id, owner_id) => {
 };
 
 const update = async (property_id, owner_id, body) => {
-  let checkReq = propertyValidate.validateUpdateProperty(body);
-  if (!checkReq.isValid) {
+  // joi validation
+  const validate = updatePropertySchema.validate(body, {
+    abortEarly: false,
+  });
+
+  // validation error
+  if (validate.error) {
     return {
       result: false,
-      message: "Invalid any fields",
-      error: checkReq.errors,
-      status: 500,
+      message: "Invalid fields",
+      error: validate.error.details.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      })),
+      status: 400,
     };
   }
+
+  // validated data
+  const value = validate.value;
+
+  // check property ownership
   let checkRow = await property.checkOwnerProperty(property_id, owner_id);
+
   if (checkRow.length === 0) {
     return {
       result: false,
@@ -191,22 +220,28 @@ const update = async (property_id, owner_id, body) => {
       status: 404,
     };
   }
-  if (checkRow[0].status_id == 1) {
-    await property.update(property_id, owner_id, body);
-    let row = await property.getById(property_id);
-    return {
-      result: true,
-      message: "Updated Successfully",
-      status: 200,
-      data: row[0],
-    };
-  } else if (checkRow[0].status_id != 1) {
+
+  // allow update only when pending
+  if (checkRow[0].status_id != 1) {
     return {
       result: false,
-      message: "Cannot update because status is not in pending",
+      message: "Cannot update because status is not pending",
       status: 403,
     };
   }
+
+  // update property
+  await property.update(property_id, owner_id, value);
+
+  // get updated property
+  let row = await property.getById(property_id);
+
+  return {
+    result: true,
+    message: "Updated successfully",
+    status: 200,
+    data: row[0],
+  };
 };
 
 const deleteProperty = async (propertyId, userId) => {

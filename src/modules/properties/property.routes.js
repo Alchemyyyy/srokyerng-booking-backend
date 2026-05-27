@@ -35,10 +35,10 @@ router.get(
   propertyController.getMyProperty
 );
 router.get("/:propertyId/reviews", reviewController.getPropertyReviews);
-router.get("/properties/:propertyId/amenities", amenityController.getPropertyAmenities);
+router.get("/:propertyId/amenities", amenityController.getPropertyAmenities);
 
 router.put(
-  "/properties/:propertyId/amenities",
+  "/:propertyId/amenities",
   amenityController.updatePropertyAmenities
 );
 router.get("/:id", propertyController.getDetail);
