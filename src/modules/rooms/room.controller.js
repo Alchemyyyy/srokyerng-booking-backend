@@ -57,6 +57,40 @@ const deleteRoomImage = asyncHandler(async (req, res) => {
 const getRoomTypes = asyncHandler(async (req, res) => {
   let result = await room.getRoomTypes();
 
+  return successResponse(res, "Room types fetched successfully", result, 200);
+});
+
+const getRoomImages = asyncHandler(async (req, res) => {
+  let result = await room.getRoomImages(req.params.roomId);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const setRoomCoverImage = asyncHandler(async (req, res) => {
+  let result = await room.setRoomCoverImage(
+    req.params.roomId,
+    req.params.imageId,
+    req.user.id
+  );
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const sortRoomImages = asyncHandler(async (req, res) => {
+  let result = await room.sortRoomImages(req.params.roomId, req.body, req.user.id);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
   return successResponse(res, result.message, result.data, result.status);
 });
 
@@ -67,4 +101,7 @@ module.exports = {
   uploadRoomImages,
   deleteRoomImage,
   getRoomTypes,
+  getRoomImages,
+  setRoomCoverImage,
+  sortRoomImages,
 };
