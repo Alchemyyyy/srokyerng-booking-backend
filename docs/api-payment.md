@@ -20,6 +20,16 @@ Owner:
 - `PATCH /owner/payments/:id/verify`
 - `PATCH /owner/payments/:id/reject`
 - `PATCH /owner/payments/:id/refund`
+- `GET /owner/payment-accounts`
+- `POST /owner/payment-accounts`
+- `PATCH /owner/payment-accounts/:id`
+- `PATCH /owner/payment-accounts/:id/deactivate`
+- `DELETE /owner/payment-accounts/:id`
+- `PATCH /owner/payment-accounts/:id/activate`
+
+Customer checkout:
+
+- `GET /properties/:propertyId/payment-accounts`
 
 Admin:
 
@@ -27,6 +37,8 @@ Admin:
 - `GET /admin/payments/:id`
 - `GET /admin/payments/:id/proof`
 - `GET /admin/payments/pending-verification`
+- `GET /admin/payment-accounts`
+- `GET /admin/payment-accounts/:id`
 
 ---
 
@@ -204,6 +216,117 @@ Query parameters:
 
 Returns payments for properties owned by the authenticated owner.
 
+### Owner Payment Account Management
+
+#### List Owner Payment Accounts
+
+```text
+GET /owner/payment-accounts
+```
+
+Requires authentication and `owner` role.
+
+Returns the authenticated owner’s payment accounts, including active and inactive accounts.
+
+#### Create Owner Payment Account
+
+```text
+POST /owner/payment-accounts
+```
+
+Requires authentication and `owner` role.
+Content-Type: `multipart/form-data`
+
+Form fields:
+
+- `payment_method_id` — required, must be a supported active payment method.
+- `account_name` — required.
+- `account_number` — optional.
+- `qr_image` — optional file upload for QR code image.
+
+Validation rules:
+
+- `payment_method_id` must exist and be active.
+- `account_name` is required.
+- At least one of `account_number` or `qr_image` must be provided.
+- Prevents duplicate active accounts for the same owner and payment method.
+
+Success response:
+
+```json
+{
+  "success": true,
+  "message": "Payment account created successfully",
+  "data": {
+    /* owner payment account object */
+  }
+}
+```
+
+#### Update Owner Payment Account
+
+```text
+PATCH /owner/payment-accounts/:id
+```
+
+Requires authentication and `owner` role.
+Content-Type: `multipart/form-data`
+
+Form fields:
+
+- `payment_method_id` — optional, if provided must be an active payment method.
+- `account_name` — optional but cannot be empty.
+- `account_number` — optional.
+- `qr_image` — optional file upload to add or replace the QR image.
+
+Rules:
+
+- The account must belong to the authenticated owner.
+- At least one payment detail must remain after update.
+- Duplicate active account for the same owner/payment method is prevented.
+
+#### Deactivate Owner Payment Account
+
+```text
+PATCH /owner/payment-accounts/:id/deactivate
+```
+
+Requires authentication and `owner` role.
+
+Marks the account as inactive. Inactive accounts are not returned in checkout flows.
+
+#### Delete Owner Payment Account
+
+```text
+DELETE /owner/payment-accounts/:id
+```
+
+Requires authentication and `owner` role.
+
+Deletes the payment account by deactivating it. This is a safe delete operation for owner payment account cleanup, and the response returns the resulting inactive account.
+
+#### Activate Owner Payment Account
+
+```text
+PATCH /owner/payment-accounts/:id/activate
+```
+
+Requires authentication and `owner` role.
+
+Reactivates a previously deactivated account, provided it does not conflict with another active account for the same payment method.
+
+### Customer Checkout Payment Accounts
+
+#### List Payment Accounts for a Property
+
+```text
+GET /properties/:propertyId/payment-accounts
+```
+
+Requires authentication and `customer` role.
+
+Returns active payment accounts for the owner of the specified property. Inactive accounts are excluded from this checkout flow.
+
 ### Get Owner Payment by ID
 
 ```text
@@ -308,6 +431,42 @@ Request body:
   "rejection_reason": "Receipt image is unclear"
 }
 ```
+
+
+## Admin Payment Account Audit
+
+### List Owner Payment Accounts
+
+```text
+GET /admin/payment-accounts
+```
+
+Requires authentication and `admin` role.
+
+Query parameters:
+
+- `owner_id` — optional filter by owner.
+- `payment_method_id` — optional filter by payment method.
+- `is_active` — optional filter by active status (`true` or `false`).
+
+Returns owner payment account records for audit and review.
+
+### Get Owner Payment Account by ID
+
+```text
+GET /admin/payment-accounts/:id
+```
+
+Requires authentication and `admin` role.
+
+Returns the owner payment account details including:
+
+- `payment_method_name`
+- `account_name`
+- `account_number`
+- `qr_image_url`
+- `is_active`
+- created and updated timestamps
 
 Notes:
 
