@@ -190,6 +190,7 @@ CREATE TABLE rooms (
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
 
     CONSTRAINT fk_rooms_property
         FOREIGN KEY (property_id) REFERENCES properties(id)
@@ -327,6 +328,7 @@ CREATE TABLE payments (
     currency VARCHAR(10) DEFAULT 'USD',
 
     transaction_reference VARCHAR(255),
+    rejection_reason TEXT,
     receipt_image_url TEXT,
 
     verified_by INT NULL,
