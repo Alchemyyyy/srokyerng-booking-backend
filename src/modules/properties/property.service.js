@@ -2,7 +2,11 @@ const fs = require("fs");
 const path = require("path");
 const property = require("./property.model");
 
-const { createPropertySchema, updatePropertySchema } = require("./property.validation");
+const {
+  createPropertySchema,
+  updatePropertySchema,
+  isValidRow,
+} = require("./property.validation");
 
 const getAllApproved = async (query) => {
   const filters = {
@@ -63,7 +67,7 @@ const getDetail = async (id) => {
     throw new Error("Id must be number");
   }
   let row = await property.getDetail(id);
-  if (propertyValidate.isValidRow) {
+  if (isValidRow) {
     let property_data = row[0];
     const images = await property.getImages(property_data.id);
     const amenities = await property.getAmenities(property_data.id);
@@ -77,7 +81,7 @@ const getDetail = async (id) => {
       status: 200,
       data: property_data,
     };
-  } else if (!propertyValidate.isValidRow) {
+  } else if (!isValidRow) {
     return {
       result: false,
       message: "Owner detail not found",

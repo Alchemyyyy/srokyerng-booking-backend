@@ -200,7 +200,7 @@ success response:
 }
 ```
 
-## Register Property
+## Register Property (owner)
 
 ```text
 POST /properties

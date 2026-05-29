@@ -36,10 +36,7 @@ router.get(
 router.get("/:propertyId/reviews", reviewController.getPropertyReviews);
 router.get("/:propertyId/amenities", amenityController.getPropertyAmenities);
 
-router.put(
-  "/:propertyId/amenities",
-  amenityController.updatePropertyAmenities
-);
+router.put("/:propertyId/amenities", amenityController.updatePropertyAmenities);
 router.get("/:id", propertyController.getDetail);
 
 router.get(
@@ -94,5 +91,7 @@ router.get(
   roleMiddleware(role.OWNER),
   propertyController.getPropertyRooms
 );
+
+router.get("/:propertyId/availability", propertyController.checkPropertyAvailability);
 
 module.exports = router;

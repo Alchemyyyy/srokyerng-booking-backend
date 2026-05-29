@@ -67,7 +67,7 @@ success response:
 }
 ```
 
-## Sort room images
+## Sort room images (owner)
 
 ```text
 PATCH /api/rooms/:roomId/images/sort
@@ -96,7 +96,7 @@ success response:
 }
 ```
 
-## Delete room image
+## Delete room image (owner)
 
 ```text
 DELETE /api/rooms/:roomId/images/:imageId
@@ -110,5 +110,63 @@ success response:
   "success": true,
   "message": "Room image deleted successfully",
   "data": null
+}
+```
+
+## Check room availability (public)
+
+```text
+GET /api/properties/8/availability?check_in_date=2026-06-01&check_out_date=2026-06-03&guests=2
+```
+
+check_in_date >= Now
+
+Authorization: not required
+
+success response:
+
+```json
+{
+  "success": true,
+  "message": "Room availability checked successfully",
+  "data": {
+    "room_id": 1,
+    "room_name": "Deluxe Room",
+    "total_rooms": 10,
+    "booked_rooms": 1,
+    "available_rooms": 9,
+    "is_available": true,
+    "check_in_date": "2026-05-27",
+    "check_out_date": "2026-05-30",
+    "guests": 2
+  }
+}
+```
+
+## Check property availability(public)
+
+```text
+GET /api/properties/8/availability?check_in_date=2026-06-01&check_out_date=2026-06-03&guests=2
+```
+
+Authorization: not required
+
+success response:
+
+```json
+{
+  "success": true,
+  "message": "Property availability checked successfully",
+  "data": [
+    {
+      "room_id": 4,
+      "room_name": "VIP Room",
+      "room_type": "Standard",
+      "price_per_night": "50.00",
+      "max_guests": 2,
+      "available_rooms": 5,
+      "cover_image": null
+    }
+  ]
 }
 ```
