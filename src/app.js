@@ -8,13 +8,19 @@ const errorMiddleware = require("./middleware/error.middleware");
 
 
 const app = express();
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || env.FRONTEND_URLS.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  credentials: true,
+};
   
-app.use(
-  cors({
-    origin: env.FRONTEND_URL,
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

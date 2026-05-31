@@ -17,6 +17,17 @@ const getRequired = (key) => {
   return value;
 };
 
+const parseList = (value, fallback = []) => {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .concat(fallback)
+    .filter((item, index, list) => list.indexOf(item) === index);
+};
+
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
 const env = {
   PORT: parseNumber(process.env.PORT, 5001),
   DB_HOST: getRequired("DB_HOST"),
@@ -29,7 +40,8 @@ const env = {
   REFRESH_TOKEN_EXPIRES_DAYS: parseNumber(process.env.REFRESH_TOKEN_EXPIRES_DAYS, 30),
   REFRESH_TOKEN_COOKIE_SECURE: process.env.REFRESH_TOKEN_COOKIE_SECURE === "true",
   REFRESH_TOKEN_COOKIE_SAME_SITE: process.env.REFRESH_TOKEN_COOKIE_SAME_SITE || "lax",
-  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
+  FRONTEND_URL: frontendUrl,
+  FRONTEND_URLS: parseList(process.env.FRONTEND_URLS, [frontendUrl]),
   SMTP_HOST: process.env.SMTP_HOST || "",
   SMTP_PORT: parseNumber(process.env.SMTP_PORT, 587),
   SMTP_USER: process.env.SMTP_USER || "",
