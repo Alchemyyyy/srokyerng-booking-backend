@@ -10,6 +10,10 @@ const adminRoutes = require("../modules/admin/admin.routes");
 const amenityRoutes = require("../modules/amenities/amenity.routes");
 const paymentRoutes = require("../modules/payments/payment.routes");
 const roomRoutes = require("../modules/rooms/room.routes");
+const wishlistRoutes = require("../modules/wishlists/wishlist.routes");
+const notificationRoutes = require("../modules/notifications/notification.routes");
+const chatRoutes = require("../modules/chats/chat.routes");
+const reportRoutes = require("../modules/reports/report.routes");
 
 const router = express.Router();
 
@@ -30,5 +34,9 @@ router.use("/admin", adminRoutes);
 router.use("/amenities", amenityRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/rooms", roomRoutes);
+router.use("/wishlists", wishlistRoutes);
+router.use("/notifications", notificationRoutes);
+router.use("/chats", chatRoutes);
+router.use("/reports", reportRoutes);
 
 module.exports = router;

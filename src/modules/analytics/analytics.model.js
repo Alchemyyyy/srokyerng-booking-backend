@@ -1,0 +1,3 @@
+// Analytics SQL queries will be added by the analytics module owner.
+
+module.exports = {};

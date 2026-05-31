@@ -14,10 +14,13 @@ These rules keep the Express API consistent while multiple teammates work in par
 ## Route Rules
 
 - Register active module routes in `src/routes/index.js`.
-- Do not enable scaffolded routes until controller, service, model, validation, and tests exist.
+- Scaffold routes may be registered only when they export an empty router and do not expose unfinished endpoint handlers.
+- Do not enable unfinished endpoint handlers until controller, service, model, validation, and tests exist.
 - Protected routes must use `authMiddleware`.
 - Role-protected routes must use `roleMiddleware(...)` with constants from `src/constants/roles.js`.
 - Keep route paths resource-based, for example `/properties`, `/rooms`, `/reservations`.
+- Feature logic belongs in the feature module even when a role-specific route is mounted from `owner` or `admin`.
+- Role-specific scaffold routes, such as owner/admin analytics, should be mounted only from the related role route file when implementation starts.
 
 ## Controller Rules
 
@@ -59,7 +62,7 @@ These rules keep the Express API consistent while multiple teammates work in par
 - `schema.sql` is the fresh database source of truth.
 - Seed reference data through ordered files in `src/database/seeders`.
 - Add or change seed files carefully; they should be safe to rerun.
-- Schema or seed changes require team lead review.
+- Schema, migration, or seed changes require team lead review.
 
 ## Error Rules
 
