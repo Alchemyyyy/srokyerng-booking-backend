@@ -1,6 +1,7 @@
 const express = require("express");
 
 const propertyController = require("./property.controller");
+const paymentController = require("../payments/payment.controller");
 const authMiddleware = require("../../middleware/auth.middleware");
 const roleMiddleware = require("../../middleware/role.middleware");
 const upload = require("../../middleware/upload.middleware");
@@ -81,6 +82,12 @@ router.patch(
 );
 
 router.get("/:propertyId/rooms", propertyController.getPropertyRooms);
+router.get(
+  "/:propertyId/payment-accounts",
+  authMiddleware,
+  roleMiddleware(role.CUSTOMER),
+  paymentController.getPropertyPaymentAccounts
+);
 router.post(
   "/:propertyId/rooms",
   authMiddleware,

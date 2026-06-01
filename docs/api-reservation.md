@@ -1,33 +1,15 @@
 ## Reservation Endpoints
 
-### Check Availability
+### Reservation Route Summary
 
-```text
-GET /reservations/availability
-```
-
-No authentication required.
-
-Query parameters:
-
-- `room_id`: Room ID (required)
-- `check_in_date`: ISO date (required)
-- `check_out_date`: ISO date (required)
-
-Returns:
-
-```json
-{
-  "success": true,
-  "message": "Availability checked",
-  "data": {
-    "isAvailable": true,
-    "availableRooms": 2,
-    "bookedCount": 1,
-    "totalRooms": 3
-  }
-}
-```
+- `POST /reservations` — Create reservation (auth + customer)
+- `GET /reservations/my` — Get current customer reservations (auth + customer)
+- `GET /reservations/:id` — Get reservation by ID (auth required)
+- `PATCH /reservations/:id/cancel` — Cancel reservation (auth + customer)
+- `GET /owner/reservations` — List owner reservations (auth + owner)
+- `GET /owner/dashboard` — Owner dashboard counts (auth + owner)
+- `GET /admin/reservations` — List all reservations (auth + admin)
+- `PATCH /admin/reservations/:id/status` — Update reservation status (auth + admin)
 
 ### Create Reservation
 
@@ -220,6 +202,30 @@ Returns:
       "customer_email": "john@example.com"
     }
   ]
+}
+```
+
+#### Dashboard Owner Reservation
+
+```text
+GET /owner/dashboard
+```
+
+Requires authentication and `owner` role.
+
+Returns:
+
+```json
+{
+  "success": true,
+  "message": "Owner dashboard data retrieved",
+  "data": {
+    "total_reservations": 12,
+    "pending_reservations": 11,
+    "confirmed_reservations": 1,
+    "completed_reservations": 0,
+    "cancelled_reservations": 0
+  }
 }
 ```
 

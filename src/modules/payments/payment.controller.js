@@ -6,6 +6,8 @@ const {
   validateVerifyPayment,
   validateRejectPayment,
   validateRefundPayment,
+  validateCreateOwnerPaymentAccount,
+  validateUpdateOwnerPaymentAccount,
 } = require("./payment.validation");
 
 // ─── Customer ──────────────────────────────────────────────────────
@@ -49,6 +51,126 @@ const getReservationOwnerPaymentAccounts = asyncHandler(async (req, res) => {
     reservationId
   );
   return successResponse(res, "Owner payment accounts retrieved successfully", accounts);
+});
+
+const getOwnerPaymentAccounts = asyncHandler(async (req, res) => {
+  const accounts = await paymentService.getOwnerPaymentAccounts(req.user.id);
+  return successResponse(res, "Owner payment accounts retrieved successfully", accounts);
+});
+
+const createOwnerPaymentAccount = asyncHandler(async (req, res) => {
+  const { errors, value } = validateCreateOwnerPaymentAccount(req.body);
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  const qrImageUrl = req.file
+    ? `/uploads/payment-account-qrs/${req.file.filename}`
+    : null;
+  const account = await paymentService.createOwnerPaymentAccount(req.user.id, {
+    ...value,
+    qr_image_url: qrImageUrl,
+  });
+  return successResponse(res, "Payment account created successfully", account, 201);
+});
+
+const updateOwnerPaymentAccount = asyncHandler(async (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId) || accountId <= 0) {
+    return errorResponse(res, "Invalid payment account ID", 400);
+  }
+
+  const { errors, value } = validateUpdateOwnerPaymentAccount(req.body);
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  const qrImageUrl = req.file
+    ? `/uploads/payment-account-qrs/${req.file.filename}`
+    : undefined;
+  const payload = {
+    ...value,
+  };
+  if (qrImageUrl !== undefined) payload.qr_image_url = qrImageUrl;
+
+  const account = await paymentService.updateOwnerPaymentAccount(
+    req.user.id,
+    accountId,
+    payload
+  );
+  return successResponse(res, "Payment account updated successfully", account);
+});
+
+const deactivateOwnerPaymentAccount = asyncHandler(async (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId) || accountId <= 0) {
+    return errorResponse(res, "Invalid payment account ID", 400);
+  }
+
+  const account = await paymentService.deactivateOwnerPaymentAccount(
+    req.user.id,
+    accountId
+  );
+  return successResponse(res, "Payment account deactivated successfully", account);
+});
+
+const deleteOwnerPaymentAccount = asyncHandler(async (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId) || accountId <= 0) {
+    return errorResponse(res, "Invalid payment account ID", 400);
+  }
+
+  const account = await paymentService.deleteOwnerPaymentAccount(
+    req.user.id,
+    accountId
+  );
+  return successResponse(res, "Payment account deleted successfully", account);
+});
+
+const activateOwnerPaymentAccount = asyncHandler(async (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId) || accountId <= 0) {
+    return errorResponse(res, "Invalid payment account ID", 400);
+  }
+
+  const account = await paymentService.activateOwnerPaymentAccount(
+    req.user.id,
+    accountId
+  );
+  return successResponse(res, "Payment account activated successfully", account);
+});
+
+const getPropertyPaymentAccounts = asyncHandler(async (req, res) => {
+  const propertyId = parseInt(req.params.propertyId, 10);
+  if (isNaN(propertyId) || propertyId <= 0) {
+    return errorResponse(res, "Invalid property ID", 400);
+  }
+
+  const accounts = await paymentService.getPropertyPaymentAccounts(propertyId);
+  return successResponse(res, "Payment accounts retrieved successfully", accounts);
+});
+
+const getAdminOwnerPaymentAccounts = asyncHandler(async (req, res) => {
+  const filters = {};
+  if (req.query.owner_id) filters.owner_id = parseInt(req.query.owner_id, 10);
+  if (req.query.payment_method_id)
+    filters.payment_method_id = parseInt(req.query.payment_method_id, 10);
+  if (typeof req.query.is_active !== "undefined") {
+    filters.is_active = req.query.is_active === "true";
+  }
+
+  const accounts = await paymentService.getAdminOwnerPaymentAccounts(filters);
+  return successResponse(res, "Payment accounts retrieved successfully", accounts);
+});
+
+const getAdminOwnerPaymentAccountById = asyncHandler(async (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId) || accountId <= 0) {
+    return errorResponse(res, "Invalid payment account ID", 400);
+  }
+
+  const account = await paymentService.getAdminOwnerPaymentAccountById(accountId);
+  return successResponse(res, "Payment account retrieved successfully", account);
 });
 
 /**
@@ -234,6 +356,15 @@ module.exports = {
   createPayment,
   getMyPayments,
   getReservationOwnerPaymentAccounts,
+  getOwnerPaymentAccounts,
+  createOwnerPaymentAccount,
+  updateOwnerPaymentAccount,
+  deactivateOwnerPaymentAccount,
+  deleteOwnerPaymentAccount,
+  activateOwnerPaymentAccount,
+  getPropertyPaymentAccounts,
+  getAdminOwnerPaymentAccounts,
+  getAdminOwnerPaymentAccountById,
   getOwnerPayments,
   getPaymentById,
   getPaymentProof,

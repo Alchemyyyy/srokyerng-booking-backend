@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 // ─── Path resolution for mock injection ───────────────────────────
 const paymentServicePath = require.resolve("../src/modules/payments/payment.service");
 const paymentModelPath = require.resolve("../src/modules/payments/payment.model");
+const propertyModelPath = require.resolve("../src/modules/properties/property.model");
 const paymentValidationPath =
   require.resolve("../src/modules/payments/payment.validation");
 
@@ -69,25 +70,46 @@ const mockPaymentRow = (overrides = {}) => ({
 });
 
 // ─── Load service with injected model mock ─────────────────────────
-const loadPaymentService = (modelMock) => {
-  const original = require.cache[paymentServicePath];
-  const originalModel = require.cache[paymentModelPath];
+const loadPaymentService = (modelMocks = {}) => {
+  const originalService = require.cache[paymentServicePath];
+  const originalPaymentModel = require.cache[paymentModelPath];
+  const originalPropertyModel = require.cache[propertyModelPath];
 
   delete require.cache[paymentServicePath];
-  require.cache[paymentModelPath] = {
-    id: paymentModelPath,
-    filename: paymentModelPath,
-    loaded: true,
-    exports: modelMock,
-  };
+
+  const shouldMockPaymentModel =
+    modelMocks.paymentModel ||
+    Object.keys(modelMocks).some(
+      (key) => key !== "propertyModel" && key !== "paymentModel"
+    );
+
+  if (shouldMockPaymentModel) {
+    require.cache[paymentModelPath] = {
+      id: paymentModelPath,
+      filename: paymentModelPath,
+      loaded: true,
+      exports: modelMocks.paymentModel || modelMocks,
+    };
+  }
+
+  if (modelMocks.propertyModel) {
+    require.cache[propertyModelPath] = {
+      id: propertyModelPath,
+      filename: propertyModelPath,
+      loaded: true,
+      exports: modelMocks.propertyModel,
+    };
+  }
 
   const service = require(paymentServicePath);
 
   const restore = () => {
     delete require.cache[paymentServicePath];
-    delete require.cache[paymentModelPath];
-    if (original) require.cache[paymentServicePath] = original;
-    if (originalModel) require.cache[paymentModelPath] = originalModel;
+    if (shouldMockPaymentModel) delete require.cache[paymentModelPath];
+    if (modelMocks.propertyModel) delete require.cache[propertyModelPath];
+    if (originalService) require.cache[paymentServicePath] = originalService;
+    if (originalPaymentModel) require.cache[paymentModelPath] = originalPaymentModel;
+    if (originalPropertyModel) require.cache[propertyModelPath] = originalPropertyModel;
   };
 
   return { service, restore };
@@ -293,6 +315,263 @@ test("createPayment creates payment with correct amount from reservation", async
     assert.equal(calls.createPayment.ownerId, 20);
     assert.equal(result.payment_status, "pending");
     assert.equal(result.payment_method, "ABA");
+  } finally {
+    restore();
+  }
+});
+
+test("validateCreateOwnerPaymentAccount rejects missing payment_method_id", () => {
+  const { validateCreateOwnerPaymentAccount } = require(paymentValidationPath);
+  const { errors } = validateCreateOwnerPaymentAccount({ account_name: "Owner ABA" });
+  assert.ok(errors.length > 0);
+  assert.ok(errors.some((e) => e.includes("Payment method ID")));
+});
+
+test("validateCreateOwnerPaymentAccount rejects missing account_name", () => {
+  const { validateCreateOwnerPaymentAccount } = require(paymentValidationPath);
+  const { errors } = validateCreateOwnerPaymentAccount({ payment_method_id: 1 });
+  assert.ok(errors.length > 0);
+  assert.ok(errors.some((e) => e.includes("Account name")));
+});
+
+test("validateCreateOwnerPaymentAccount accepts valid payload", () => {
+  const { validateCreateOwnerPaymentAccount } = require(paymentValidationPath);
+  const { errors, value } = validateCreateOwnerPaymentAccount({
+    payment_method_id: 1,
+    account_name: "Owner ABA",
+  });
+  assert.equal(errors.length, 0);
+  assert.equal(value.account_name, "Owner ABA");
+});
+
+test("createOwnerPaymentAccount returns 400 when payment method inactive", async () => {
+  const { service, restore } = loadPaymentService({
+    findPaymentMethodById: async () => null,
+  });
+
+  try {
+    await assert.rejects(
+      service.createOwnerPaymentAccount(20, {
+        payment_method_id: 99,
+        account_name: "Owner ABA",
+      }),
+      (err) => {
+        assert.equal(err.statusCode, 400);
+        return true;
+      }
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("createOwnerPaymentAccount returns 409 when duplicate active payment method exists", async () => {
+  const { service, restore } = loadPaymentService({
+    findPaymentMethodById: async () => ({ id: 1, method_name: "ABA" }),
+    findOwnerActivePaymentAccountByOwnerAndMethod: async () => ({ id: 5 }),
+  });
+
+  try {
+    await assert.rejects(
+      service.createOwnerPaymentAccount(20, {
+        payment_method_id: 1,
+        account_name: "Owner ABA",
+        account_number: "123456",
+      }),
+      (err) => {
+        assert.equal(err.statusCode, 409);
+        return true;
+      }
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("createOwnerPaymentAccount returns account details when valid", async () => {
+  const account = {
+    id: 10,
+    owner_id: 20,
+    payment_method_id: 1,
+    method_name: "ABA",
+    account_name: "Owner ABA",
+    account_number: "123456",
+    qr_image_url: null,
+    is_active: true,
+    created_at: new Date(),
+    updated_at: new Date(),
+  };
+
+  const { service, restore } = loadPaymentService({
+    findPaymentMethodById: async () => ({ id: 1, method_name: "ABA" }),
+    findOwnerActivePaymentAccountByOwnerAndMethod: async () => null,
+    createOwnerPaymentAccount: async () => 10,
+    findOwnerPaymentAccountById: async () => account,
+  });
+
+  try {
+    const result = await service.createOwnerPaymentAccount(20, {
+      payment_method_id: 1,
+      account_name: "Owner ABA",
+      account_number: "123456",
+    });
+
+    assert.equal(result.owner_id, 20);
+    assert.equal(result.payment_method_name, "ABA");
+    assert.equal(result.account_name, "Owner ABA");
+  } finally {
+    restore();
+  }
+});
+
+test("getPropertyPaymentAccounts returns 404 when property missing", async () => {
+  const { service, restore } = loadPaymentService({
+    propertyModel: {
+      findPropertyById: async () => null,
+    },
+  });
+
+  try {
+    await assert.rejects(
+      service.getPropertyPaymentAccounts(999),
+      (err) => {
+        assert.equal(err.statusCode, 404);
+        return true;
+      }
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("getPropertyPaymentAccounts returns active owner payment accounts", async () => {
+  const accounts = [
+    {
+      id: 12,
+      owner_id: 20,
+      payment_method_id: 1,
+      method_name: "ABA",
+      account_name: "Owner ABA",
+      account_number: "123456",
+      qr_image_url: null,
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  ];
+
+  const { service, restore } = loadPaymentService({
+    propertyModel: {
+      findPropertyById: async () => ({ owner_id: 20 }),
+    },
+    findActiveOwnerPaymentAccountsByOwnerId: async () => accounts,
+  });
+
+  try {
+    const result = await service.getPropertyPaymentAccounts(3);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].owner_id, 20);
+  } finally {
+    restore();
+  }
+});
+
+test("updateOwnerPaymentAccount returns 403 when account belongs to another owner", async () => {
+  const { service, restore } = loadPaymentService({
+    findOwnerPaymentAccountById: async () => ({
+      id: 20,
+      owner_id: 99,
+      payment_method_id: 1,
+      account_name: "Other Owner",
+      account_number: "123",
+      qr_image_url: null,
+    }),
+  });
+
+  try {
+    await assert.rejects(
+      service.updateOwnerPaymentAccount(20, 20, { account_name: "New Name" }),
+      (err) => {
+        assert.equal(err.statusCode, 403);
+        return true;
+      }
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("activateOwnerPaymentAccount returns 403 when activating another owner's account", async () => {
+  const { service, restore } = loadPaymentService({
+    findOwnerPaymentAccountById: async () => ({
+      id: 21,
+      owner_id: 99,
+      payment_method_id: 1,
+      is_active: false,
+    }),
+  });
+
+  try {
+    await assert.rejects(
+      service.activateOwnerPaymentAccount(20, 21),
+      (err) => {
+        assert.equal(err.statusCode, 403);
+        return true;
+      }
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("deactivateOwnerPaymentAccount returns 403 when deactivating another owner's account", async () => {
+  const { service, restore } = loadPaymentService({
+    findOwnerPaymentAccountById: async () => ({
+      id: 22,
+      owner_id: 99,
+      payment_method_id: 1,
+      is_active: true,
+    }),
+  });
+
+  try {
+    await assert.rejects(
+      service.deactivateOwnerPaymentAccount(20, 22),
+      (err) => {
+        assert.equal(err.statusCode, 403);
+        return true;
+      }
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("deleteOwnerPaymentAccount deactivates the authenticated owner's account", async () => {
+  let callCount = 0;
+  const activeAccount = {
+    id: 23,
+    owner_id: 20,
+    payment_method_id: 1,
+    is_active: true,
+  };
+  const inactiveAccount = {
+    ...activeAccount,
+    is_active: false,
+  };
+
+  const { service, restore } = loadPaymentService({
+    findOwnerPaymentAccountById: async () => {
+      callCount += 1;
+      return callCount === 1 ? activeAccount : inactiveAccount;
+    },
+    setOwnerPaymentAccountActive: async () => {},
+  });
+
+  try {
+    const result = await service.deleteOwnerPaymentAccount(20, 23);
+    assert.equal(result.id, 23);
+    assert.equal(result.is_active, false);
   } finally {
     restore();
   }

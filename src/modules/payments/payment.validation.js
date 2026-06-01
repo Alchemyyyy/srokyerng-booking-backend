@@ -36,6 +36,30 @@ const refundPaymentSchema = Joi.object({
   notes: Joi.string().trim().max(500).allow("", null).optional(),
 });
 
+const createOwnerPaymentAccountSchema = Joi.object({
+  payment_method_id: Joi.number().integer().positive().required().messages({
+    "any.required": "Payment method ID is required",
+    "number.base": "Payment method ID must be a number",
+    "number.positive": "Payment method ID must be positive",
+  }),
+  account_name: Joi.string().trim().min(1).max(150).required().messages({
+    "any.required": "Account name is required",
+    "string.empty": "Account name is required",
+  }),
+  account_number: Joi.string().trim().max(100).allow("", null).optional(),
+});
+
+const updateOwnerPaymentAccountSchema = Joi.object({
+  payment_method_id: Joi.number().integer().positive().optional().messages({
+    "number.base": "Payment method ID must be a number",
+    "number.positive": "Payment method ID must be positive",
+  }),
+  account_name: Joi.string().trim().min(1).max(150).optional().messages({
+    "string.empty": "Account name cannot be empty",
+  }),
+  account_number: Joi.string().trim().max(100).allow("", null).optional(),
+});
+
 // ─── Allowed status transitions ────────────────────────────────────
 // pending   → submitted (customer uploads receipt)
 // submitted → paid      (admin verify)
@@ -79,11 +103,23 @@ const validateRefundPayment = (body) => {
   return { errors: formatErrors(error), value: error ? null : value };
 };
 
+const validateCreateOwnerPaymentAccount = (body) => {
+  const { error, value } = createOwnerPaymentAccountSchema.validate(body, validationOptions);
+  return { errors: formatErrors(error), value: error ? null : value };
+};
+
+const validateUpdateOwnerPaymentAccount = (body) => {
+  const { error, value } = updateOwnerPaymentAccountSchema.validate(body, validationOptions);
+  return { errors: formatErrors(error), value: error ? null : value };
+};
+
 module.exports = {
   validateCreatePayment,
   validateVerifyPayment,
   validateRejectPayment,
   validateRefundPayment,
+  validateCreateOwnerPaymentAccount,
+  validateUpdateOwnerPaymentAccount,
   isValidTransition,
   ALLOWED_TRANSITIONS,
 };

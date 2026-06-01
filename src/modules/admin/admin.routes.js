@@ -23,4 +23,6 @@ router.get("/payments/pending-verification", paymentController.getPendingVerific
 router.get("/payments/:id", paymentController.getPaymentById);
 router.get("/payments/:id/proof", paymentController.getPaymentProof);
 router.get("/payments", paymentController.getAllPayments);
+router.get("/payment-accounts", paymentController.getAdminOwnerPaymentAccounts);
+router.get("/payment-accounts/:id", paymentController.getAdminOwnerPaymentAccountById);
 module.exports = router;

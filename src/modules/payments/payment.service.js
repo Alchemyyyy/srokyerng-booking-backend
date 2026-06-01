@@ -1,6 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 const paymentModel = require("./payment.model");
+const propertyModel = require("../properties/property.model");
 const { isValidTransition } = require("./payment.validation");
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -174,6 +175,22 @@ const getMyPayments = async (customerId, filters = {}) => {
   return rows.map(toSafePayment);
 };
 
+const toSafeOwnerPaymentAccount = (row) => {
+  if (!row) return null;
+  return {
+    id: row.id,
+    owner_id: row.owner_id,
+    payment_method_id: row.payment_method_id,
+    payment_method_name: row.method_name,
+    account_name: row.account_name,
+    account_number: row.account_number,
+    qr_image_url: row.qr_image_url,
+    is_active: Boolean(row.is_active),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+};
+
 const getReservationOwnerPaymentAccounts = async (customerId, reservationId) => {
   const reservation = await paymentModel.findReservationById(reservationId);
   if (!reservation) throwError("Reservation not found", 404);
@@ -184,9 +201,193 @@ const getReservationOwnerPaymentAccounts = async (customerId, reservationId) => 
   const accounts = await paymentModel.findActiveOwnerPaymentAccountsByOwnerId(
     reservation.owner_id
   );
-  console.log(accounts);
 
-  return accounts;
+  return accounts.map(toSafeOwnerPaymentAccount);
+};
+
+const getOwnerPaymentAccounts = async (ownerId) => {
+  const accounts = await paymentModel.findOwnerPaymentAccountsByOwnerId(ownerId);
+  return accounts.map(toSafeOwnerPaymentAccount);
+};
+
+const createOwnerPaymentAccount = async (ownerId, {
+  payment_method_id,
+  account_name,
+  account_number,
+  qr_image_url,
+}) => {
+  if (!account_name || account_name.trim().length === 0) {
+    throwError("Account name is required", 400);
+  }
+
+  if (!account_number && !qr_image_url) {
+    throwError("At least one payment detail is required: account number or QR image", 400);
+  }
+
+  const paymentMethod = await paymentModel.findPaymentMethodById(payment_method_id);
+  if (!paymentMethod) {
+    throwError("Payment method not found or inactive", 400);
+  }
+
+  const duplicate = await paymentModel.findOwnerActivePaymentAccountByOwnerAndMethod(
+    ownerId,
+    payment_method_id
+  );
+  if (duplicate) {
+    throwError(
+      "An active payment account already exists for this payment method",
+      409
+    );
+  }
+
+  const insertId = await paymentModel.createOwnerPaymentAccount({
+    ownerId,
+    paymentMethodId: payment_method_id,
+    accountName: account_name.trim(),
+    accountNumber: account_number ? account_number.trim() : null,
+    qrImageUrl: qr_image_url || null,
+    isActive: true,
+  });
+
+  const row = await paymentModel.findOwnerPaymentAccountById(insertId, false);
+  return toSafeOwnerPaymentAccount(row);
+};
+
+const updateOwnerPaymentAccount = async (ownerId, accountId, payload) => {
+  const { payment_method_id, account_name, account_number, qr_image_url } = payload;
+  const account = await paymentModel.findOwnerPaymentAccountById(accountId, false);
+  if (!account) throwError("Owner payment account not found", 404);
+
+  if (account.owner_id !== ownerId) {
+    throwError("You can only manage your own payment accounts", 403);
+  }
+
+  const updates = {};
+  if (payment_method_id && payment_method_id !== account.payment_method_id) {
+    const paymentMethod = await paymentModel.findPaymentMethodById(payment_method_id);
+    if (!paymentMethod) {
+      throwError("Payment method not found or inactive", 400);
+    }
+    const duplicate = await paymentModel.findOwnerActivePaymentAccountByOwnerAndMethod(
+      ownerId,
+      payment_method_id
+    );
+    if (duplicate && duplicate.id !== account.id) {
+      throwError(
+        "An active payment account already exists for this payment method",
+        409
+      );
+    }
+    updates.payment_method_id = payment_method_id;
+  }
+
+  if (Object.hasOwn(payload, "account_name")) {
+    if (!account_name || account_name.trim().length === 0) {
+      throwError("Account name is required", 400);
+    }
+    updates.account_name = account_name.trim();
+  }
+
+  if (Object.hasOwn(payload, "account_number")) {
+    updates.account_number = account_number ? account_number.trim() : null;
+  }
+
+  if (Object.hasOwn(payload, "qr_image_url")) {
+    updates.qr_image_url = qr_image_url || null;
+  }
+
+  const finalAccountNumber = Object.hasOwn(updates, "account_number")
+    ? updates.account_number
+    : account.account_number;
+  const finalQrImageUrl = Object.hasOwn(updates, "qr_image_url")
+    ? updates.qr_image_url
+    : account.qr_image_url;
+  const finalAccountName = Object.hasOwn(updates, "account_name")
+    ? updates.account_name
+    : account.account_name;
+
+  if (!finalAccountName || finalAccountName.trim().length === 0) {
+    throwError("Account name is required", 400);
+  }
+
+  if (!finalAccountNumber && !finalQrImageUrl) {
+    throwError("At least one payment detail is required: account number or QR image", 400);
+  }
+
+  if (updates.qr_image_url && account.qr_image_url && account.qr_image_url !== updates.qr_image_url) {
+    const oldPath = path.join(process.cwd(), account.qr_image_url.replace(/^\//, ""));
+    if (fs.existsSync(oldPath)) {
+      fs.unlinkSync(oldPath);
+    }
+  }
+
+  await paymentModel.updateOwnerPaymentAccount(accountId, updates);
+  const updated = await paymentModel.findOwnerPaymentAccountById(accountId, false);
+  return toSafeOwnerPaymentAccount(updated);
+};
+
+const activateOwnerPaymentAccount = async (ownerId, accountId) => {
+  const account = await paymentModel.findOwnerPaymentAccountById(accountId, false);
+  if (!account) throwError("Owner payment account not found", 404);
+  if (account.owner_id !== ownerId) {
+    throwError("You can only manage your own payment accounts", 403);
+  }
+
+  if (account.is_active) {
+    return toSafeOwnerPaymentAccount(account);
+  }
+
+  const duplicate = await paymentModel.findOwnerActivePaymentAccountByOwnerAndMethod(
+    ownerId,
+    account.payment_method_id
+  );
+  if (duplicate && duplicate.id !== account.id) {
+    throwError(
+      "An active payment account already exists for this payment method",
+      409
+    );
+  }
+
+  await paymentModel.setOwnerPaymentAccountActive(accountId, true);
+  const updated = await paymentModel.findOwnerPaymentAccountById(accountId, false);
+  return toSafeOwnerPaymentAccount(updated);
+};
+
+const deactivateOwnerPaymentAccount = async (ownerId, accountId) => {
+  const account = await paymentModel.findOwnerPaymentAccountById(accountId, false);
+  if (!account) throwError("Owner payment account not found", 404);
+  if (account.owner_id !== ownerId) {
+    throwError("You can only manage your own payment accounts", 403);
+  }
+
+  await paymentModel.setOwnerPaymentAccountActive(accountId, false);
+  const updated = await paymentModel.findOwnerPaymentAccountById(accountId, false);
+  return toSafeOwnerPaymentAccount(updated);
+};
+
+const deleteOwnerPaymentAccount = async (ownerId, accountId) => {
+  return deactivateOwnerPaymentAccount(ownerId, accountId);
+};
+
+const getPropertyPaymentAccounts = async (propertyId) => {
+  const property = await propertyModel.findPropertyById(propertyId);
+  if (!property) throwError("Property not found", 404);
+
+  const accounts = await paymentModel.findActiveOwnerPaymentAccountsByOwnerId(
+    property.owner_id
+  );
+  return accounts.map(toSafeOwnerPaymentAccount);
+};
+
+const getAdminOwnerPaymentAccounts = async (filters = {}) => {
+  const accounts = await paymentModel.findOwnerPaymentAccounts(filters);
+  return accounts.map(toSafeOwnerPaymentAccount);
+};
+
+const getAdminOwnerPaymentAccountById = async (accountId) => {
+  const account = await paymentModel.findOwnerPaymentAccountById(accountId, false);
+  if (!account) throwError("Owner payment account not found", 404);
+  return toSafeOwnerPaymentAccount(account);
 };
 
 const getOwnerPayments = async (ownerId, filters = {}) => {
@@ -272,11 +473,21 @@ const getOwnerPaymentsPendingVerification = async (ownerId) => {
   const rows = await paymentModel.findPaymentsByOwner(ownerId, { status: "submitted" });
   return rows.map(toSafePayment);
 };
+
 module.exports = {
   createPayment,
   uploadReceipt,
   getMyPayments,
   getReservationOwnerPaymentAccounts,
+  getOwnerPaymentAccounts,
+  createOwnerPaymentAccount,
+  updateOwnerPaymentAccount,
+  activateOwnerPaymentAccount,
+  deactivateOwnerPaymentAccount,
+  deleteOwnerPaymentAccount,
+  getPropertyPaymentAccounts,
+  getAdminOwnerPaymentAccounts,
+  getAdminOwnerPaymentAccountById,
   getOwnerPayments,
   getPaymentById,
   verifyPayment,
