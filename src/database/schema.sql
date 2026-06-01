@@ -389,3 +389,281 @@ CREATE TABLE reviews (
     CONSTRAINT fk_reviews_owner_reply
         FOREIGN KEY (replied_by) REFERENCES users(id)
 );
+
+CREATE TABLE wishlists (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    property_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_wishlists_customer_property (customer_id, property_id),
+    INDEX idx_wishlists_customer_id (customer_id),
+    INDEX idx_wishlists_property_id (property_id),
+
+    CONSTRAINT fk_wishlists_customer
+        FOREIGN KEY (customer_id) REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_wishlists_property
+        FOREIGN KEY (property_id) REFERENCES properties(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    notification_type VARCHAR(80) NOT NULL,
+    channel VARCHAR(30) NOT NULL DEFAULT 'in_app',
+    title VARCHAR(150) NOT NULL,
+    message TEXT NOT NULL,
+    metadata JSON NULL,
+    delivery_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP NULL,
+    sent_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_notifications_user_id (user_id),
+    INDEX idx_notifications_unread (user_id, is_read, created_at),
+    INDEX idx_notifications_type (notification_type),
+
+    CONSTRAINT fk_notifications_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE chat_conversations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    property_id INT NULL,
+    reservation_id INT NULL,
+    customer_id INT NOT NULL,
+    owner_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'open',
+    last_message_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_chat_conversations_reservation (reservation_id),
+    INDEX idx_chat_conversations_customer_id (customer_id),
+    INDEX idx_chat_conversations_owner_id (owner_id),
+    INDEX idx_chat_conversations_property_id (property_id),
+
+    CONSTRAINT fk_chat_conversations_property
+        FOREIGN KEY (property_id) REFERENCES properties(id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_chat_conversations_reservation
+        FOREIGN KEY (reservation_id) REFERENCES reservations(id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_chat_conversations_customer
+        FOREIGN KEY (customer_id) REFERENCES users(id),
+
+    CONSTRAINT fk_chat_conversations_owner
+        FOREIGN KEY (owner_id) REFERENCES users(id)
+);
+
+CREATE TABLE chat_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message_body TEXT NOT NULL,
+    attachment_url TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_chat_messages_conversation_id (conversation_id),
+    INDEX idx_chat_messages_sender_id (sender_id),
+    INDEX idx_chat_messages_created_at (created_at),
+
+    CONSTRAINT fk_chat_messages_conversation
+        FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_chat_messages_sender
+        FOREIGN KEY (sender_id) REFERENCES users(id)
+);
+
+CREATE TABLE reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reporter_id INT NOT NULL,
+    assigned_admin_id INT NULL,
+    property_id INT NULL,
+    reservation_id INT NULL,
+    payment_id INT NULL,
+    report_type VARCHAR(80) NOT NULL,
+    subject VARCHAR(150) NOT NULL,
+    description TEXT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'open',
+    resolution_note TEXT,
+    resolved_by INT NULL,
+    resolved_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_reports_reporter_id (reporter_id),
+    INDEX idx_reports_assigned_admin_id (assigned_admin_id),
+    INDEX idx_reports_status (status),
+    INDEX idx_reports_property_id (property_id),
+    INDEX idx_reports_reservation_id (reservation_id),
+    INDEX idx_reports_payment_id (payment_id),
+
+    CONSTRAINT fk_reports_reporter
+        FOREIGN KEY (reporter_id) REFERENCES users(id),
+
+    CONSTRAINT fk_reports_assigned_admin
+        FOREIGN KEY (assigned_admin_id) REFERENCES users(id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_reports_property
+        FOREIGN KEY (property_id) REFERENCES properties(id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_reports_reservation
+        FOREIGN KEY (reservation_id) REFERENCES reservations(id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_reports_payment
+        FOREIGN KEY (payment_id) REFERENCES payments(id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_reports_resolved_by
+        FOREIGN KEY (resolved_by) REFERENCES users(id)
+        ON DELETE SET NULL
+);
+
+CREATE TABLE report_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message_body TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_report_messages_report_id (report_id),
+    INDEX idx_report_messages_sender_id (sender_id),
+
+    CONSTRAINT fk_report_messages_report
+        FOREIGN KEY (report_id) REFERENCES reports(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_report_messages_sender
+        FOREIGN KEY (sender_id) REFERENCES users(id)
+);
+
+CREATE TABLE report_attachments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL,
+    uploaded_by INT NOT NULL,
+    file_url TEXT NOT NULL,
+    file_type VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_report_attachments_report_id (report_id),
+    INDEX idx_report_attachments_uploaded_by (uploaded_by),
+
+    CONSTRAINT fk_report_attachments_report
+        FOREIGN KEY (report_id) REFERENCES reports(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_report_attachments_uploaded_by
+        FOREIGN KEY (uploaded_by) REFERENCES users(id)
+);
+
+CREATE TABLE room_availability_blocks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    room_id INT NOT NULL,
+    owner_id INT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    reason VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_room_availability_blocks_room_dates (room_id, start_date, end_date),
+    INDEX idx_room_availability_blocks_owner_id (owner_id),
+
+    CONSTRAINT fk_room_availability_blocks_room
+        FOREIGN KEY (room_id) REFERENCES rooms(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_room_availability_blocks_owner
+        FOREIGN KEY (owner_id) REFERENCES users(id)
+);
+
+CREATE TABLE refund_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payment_id INT NOT NULL,
+    requested_by INT NOT NULL,
+    handled_by INT NULL,
+    refund_status VARCHAR(50) NOT NULL DEFAULT 'requested',
+    amount DECIMAL(10,2) NULL,
+    reason TEXT,
+    decision_note TEXT,
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    handled_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_refund_requests_payment_id (payment_id),
+    INDEX idx_refund_requests_requested_by (requested_by),
+    INDEX idx_refund_requests_handled_by (handled_by),
+    INDEX idx_refund_requests_status (refund_status),
+
+    CONSTRAINT fk_refund_requests_payment
+        FOREIGN KEY (payment_id) REFERENCES payments(id),
+
+    CONSTRAINT fk_refund_requests_requested_by
+        FOREIGN KEY (requested_by) REFERENCES users(id),
+
+    CONSTRAINT fk_refund_requests_handled_by
+        FOREIGN KEY (handled_by) REFERENCES users(id)
+        ON DELETE SET NULL
+);
+
+CREATE TABLE audit_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    actor_id INT NULL,
+    action VARCHAR(100) NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id INT NULL,
+    metadata JSON NULL,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_audit_logs_actor_id (actor_id),
+    INDEX idx_audit_logs_entity (entity_type, entity_id),
+    INDEX idx_audit_logs_action (action),
+    INDEX idx_audit_logs_created_at (created_at),
+
+    CONSTRAINT fk_audit_logs_actor
+        FOREIGN KEY (actor_id) REFERENCES users(id)
+        ON DELETE SET NULL
+);
+
+CREATE TABLE featured_properties (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    property_id INT NOT NULL,
+    featured_by INT NULL,
+    feature_label VARCHAR(100),
+    sort_order INT DEFAULT 0,
+    starts_at TIMESTAMP NULL,
+    ends_at TIMESTAMP NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_featured_properties_property (property_id),
+    INDEX idx_featured_properties_active_order (is_active, sort_order),
+    INDEX idx_featured_properties_featured_by (featured_by),
+
+    CONSTRAINT fk_featured_properties_property
+        FOREIGN KEY (property_id) REFERENCES properties(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_featured_properties_featured_by
+        FOREIGN KEY (featured_by) REFERENCES users(id)
+        ON DELETE SET NULL
+);
