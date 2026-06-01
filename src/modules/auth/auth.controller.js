@@ -40,6 +40,32 @@ const getRequestMetadata = (req) => {
   };
 };
 
+const getCookieValue = (req, cookieName) => {
+  const parsedCookie = req.cookies?.[cookieName];
+
+  if (parsedCookie) {
+    return parsedCookie;
+  }
+
+  const cookieHeader = req.headers?.cookie;
+
+  if (!cookieHeader) {
+    return undefined;
+  }
+
+  const cookiePrefix = `${cookieName}=`;
+  const rawCookie = cookieHeader
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(cookiePrefix));
+
+  if (!rawCookie) {
+    return undefined;
+  }
+
+  return decodeURIComponent(rawCookie.slice(cookiePrefix.length));
+};
+
 const login = asyncHandler(async (req, res) => {
   const payload = normalizeLoginBody(req.body);
   const errors = validateLogin(payload);
@@ -84,7 +110,7 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
 
 const logout = asyncHandler(async (req, res) => {
   const payload = {
-    refresh_token: req.cookies?.[REFRESH_TOKEN_COOKIE_NAME],
+    refresh_token: getCookieValue(req, REFRESH_TOKEN_COOKIE_NAME),
   };
   const errors = validateRefreshToken(payload);
 
@@ -126,7 +152,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 
 const refreshToken = asyncHandler(async (req, res) => {
   const payload = {
-    refresh_token: req.cookies?.[REFRESH_TOKEN_COOKIE_NAME],
+    refresh_token: getCookieValue(req, REFRESH_TOKEN_COOKIE_NAME),
   };
   const errors = validateRefreshToken(payload);
 
