@@ -437,6 +437,159 @@ const sortRoomImages = async (roomId, body, ownerId) => {
   };
 };
 
+const checkRoomAvailability = async (roomId, query) => {
+  const { check_in_date, check_out_date, guests } = query;
+
+  // validate room
+  const roomRow = await room.getRoomById(roomId);
+
+  if (!roomRow || roomRow.deleted_at) {
+    return {
+      result: false,
+      status: 404,
+      message: "Room not found",
+    };
+  }
+
+  // validate dates
+  if (!check_in_date) {
+    return {
+      result: false,
+      status: 400,
+      message: "Check in date is required",
+    };
+  }
+
+  if (!check_out_date) {
+    return {
+      result: false,
+      status: 400,
+      message: "Check out date is required",
+    };
+  }
+
+  // validate guests
+  const guestCount = parseInt(guests);
+
+  if (!guestCount || guestCount <= 0) {
+    return {
+      result: false,
+      status: 400,
+      message: "Guests must be positive integer",
+    };
+  }
+
+  // guest capacity
+  if (guestCount > roomRow.max_guests) {
+    return {
+      result: false,
+      status: 400,
+      message: `Maximum guests allowed is ${roomRow.max_guests}`,
+    };
+  }
+
+  // validate dates
+  const today = new Date();
+  const checkIn = new Date(check_in_date);
+  const checkOut = new Date(check_out_date);
+
+  today.setHours(0, 0, 0, 0);
+
+  if (checkIn < today) {
+    return {
+      result: false,
+      status: 400,
+      message: "Check in date cannot be in the past",
+    };
+  }
+
+  if (checkIn >= checkOut) {
+    return {
+      result: false,
+      status: 400,
+      message: "Check in date must be before check out date",
+    };
+  }
+
+  // booked rooms
+  const booked = await room.getBookedRoomCount(roomId, check_in_date, check_out_date);
+
+  const availableQuantity = roomRow.total_rooms - booked.booked_count;
+
+  return {
+    result: true,
+    status: 200,
+    message: "Room availability checked successfully",
+    data: {
+      room_id: roomRow.id,
+      room_name: roomRow.room_name,
+      total_rooms: roomRow.total_rooms,
+      booked_rooms: booked.booked_count,
+      available_rooms: availableQuantity,
+      is_available: availableQuantity > 0,
+      check_in_date,
+      check_out_date,
+      guests: guestCount,
+    },
+  };
+};
+
+const checkPropertyAvailability = async (propertyId, query) => {
+  const { check_in_date, check_out_date, guests } = query;
+
+  // property check
+  const propertyRow = await property.findPropertyById(propertyId);
+
+  if (!propertyRow) {
+    return {
+      result: false,
+      status: 404,
+      message: "Property not found",
+    };
+  }
+
+  // validate guests
+  const guestCount = parseInt(guests);
+
+  if (!guestCount || guestCount <= 0) {
+    return {
+      result: false,
+      status: 400,
+      message: "Guests must be positive integer",
+    };
+  }
+
+  // get rooms
+  const rooms = await room.getAvailableRoomsByProperty(propertyId, guestCount);
+
+  const availableRooms = [];
+
+  for (const item of rooms) {
+    const booked = await room.getBookedRoomCount(item.id, check_in_date, check_out_date);
+
+    const availableQuantity = item.total_rooms - booked.booked_count;
+
+    if (availableQuantity > 0) {
+      availableRooms.push({
+        room_id: item.id,
+        room_name: item.room_name,
+        room_type: item.type_name,
+        price_per_night: item.price_per_night,
+        max_guests: item.max_guests,
+        available_rooms: availableQuantity,
+        cover_image: item.cover_image,
+      });
+    }
+  }
+
+  return {
+    result: true,
+    status: 200,
+    message: "Property availability checked successfully",
+    data: availableRooms,
+  };
+};
+
 module.exports = {
   getPropertyRooms,
   getRoomDetail,
@@ -450,4 +603,6 @@ module.exports = {
   getRoomImages,
   setRoomCoverImage,
   sortRoomImages,
+  checkRoomAvailability,
+  checkPropertyAvailability,
 };

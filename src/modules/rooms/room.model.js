@@ -256,6 +256,58 @@ const updateRoomImageSortOrder = async (imageId, sort_order) => {
   );
 };
 
+const getBookedRoomCount = async (roomId, checkInDate, checkOutDate) => {
+  const [rows] = await pool.query(
+    `
+    SELECT COUNT(*) AS booked_count
+    FROM reservations
+    WHERE room_id = ?
+
+    AND reservation_status NOT IN (
+      'cancelled',
+      'failed',
+      'expired'
+    )
+
+    AND check_in_date < ?
+    AND check_out_date > ?
+    `,
+    [roomId, checkOutDate, checkInDate]
+  );
+
+  return rows[0];
+};
+
+const getAvailableRoomsByProperty = async (propertyId, guests) => {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      r.*,
+      rt.type_name,
+
+      (
+        SELECT image_url
+        FROM room_images
+        WHERE room_id = r.id
+        AND is_cover = TRUE
+        LIMIT 1
+      ) AS cover_image
+
+    FROM rooms r
+
+    JOIN room_types rt
+      ON r.room_type_id = rt.id
+
+    WHERE r.property_id = ?
+    AND r.deleted_at IS NULL
+    AND r.max_guests >= ?
+    `,
+    [propertyId, guests]
+  );
+
+  return rows;
+};
+
 module.exports = {
   getApprovedPropertyById,
   getRoomsByPropertyId,
@@ -273,4 +325,6 @@ module.exports = {
   clearRoomCoverImages,
   setRoomCoverImage,
   updateRoomImageSortOrder,
+  getBookedRoomCount,
+  getAvailableRoomsByProperty,
 };

@@ -94,6 +94,16 @@ const sortRoomImages = asyncHandler(async (req, res) => {
   return successResponse(res, result.message, result.data, result.status);
 });
 
+const checkRoomAvailability = asyncHandler(async (req, res) => {
+  let result = await room.checkRoomAvailability(req.params.roomId, req.query);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status, null);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
 module.exports = {
   getRoomDetail,
   updateRoom,
@@ -104,4 +114,5 @@ module.exports = {
   getRoomImages,
   setRoomCoverImage,
   sortRoomImages,
+  checkRoomAvailability,
 };

@@ -63,4 +63,6 @@ router.patch(
   roomController.sortRoomImages
 );
 
+router.get("/:roomId/availability", roomController.checkRoomAvailability);
+
 module.exports = router;
