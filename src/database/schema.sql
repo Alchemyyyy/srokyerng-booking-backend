@@ -420,12 +420,14 @@ CREATE TABLE notifications (
     delivery_status VARCHAR(30) NOT NULL DEFAULT 'pending',
     is_read BOOLEAN DEFAULT FALSE,
     read_at TIMESTAMP NULL,
+    archived_at TIMESTAMP NULL,
     sent_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     INDEX idx_notifications_user_id (user_id),
     INDEX idx_notifications_unread (user_id, is_read, created_at),
+    INDEX idx_notifications_archived (user_id, archived_at, created_at),
     INDEX idx_notifications_type (notification_type),
 
     CONSTRAINT fk_notifications_user

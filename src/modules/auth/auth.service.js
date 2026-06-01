@@ -8,6 +8,7 @@ const {
   sendPasswordResetEmail,
   sendEmailVerificationEmail,
 } = require("../../utils/email");
+const notificationService = require("../notifications/notification.service");
 
 const PASSWORD_RESET_TOKEN_BYTES = 32;
 const PASSWORD_RESET_EXPIRES_MS = 60 * 60 * 1000;
@@ -197,6 +198,12 @@ const verifyEmail = async ({ token }) => {
 
   await authModel.markEmailAsVerified(verificationToken.user_id);
   await authModel.markEmailVerificationTokenAsUsed(verificationToken.id);
+  await notificationService.notifyUserSafely({
+    userId: verificationToken.user_id,
+    type: notificationService.NOTIFICATION_TYPES.SYSTEM,
+    title: "Email verified",
+    message: "Your email address has been verified successfully.",
+  });
 };
 
 const resendVerificationEmail = async (userId) => {
@@ -270,6 +277,19 @@ const resetPassword = async ({ token, password }) => {
   await authModel.updatePassword(resetToken.user_id, passwordHash);
   await authModel.markPasswordResetTokenAsUsed(resetToken.id);
   await authModel.revokeRefreshTokensForUser(resetToken.user_id);
+  await notificationService.notifyUserSafely({
+    userId: resetToken.user_id,
+    type: notificationService.NOTIFICATION_TYPES.PASSWORD_CHANGED,
+    title: "Password reset completed",
+    message: "Your password was reset successfully. All active sessions were signed out.",
+    critical: true,
+    email: {
+      subject: "Your SrokYerng Booking password was reset",
+      title: "Password reset completed",
+      message:
+        "Your password was reset successfully. If this was not you, contact support immediately.",
+    },
+  });
 };
 
 const refreshToken = async ({ refresh_token }, metadata = {}) => {
