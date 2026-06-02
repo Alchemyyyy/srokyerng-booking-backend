@@ -34,7 +34,7 @@ const getMyReservations = asyncHandler(async (req, res) => {
       return errorResponse(res, statusError, 400);
     }
   }
-  
+
   const filters = {};
 
   if (status) filters.status = status;
@@ -159,12 +159,27 @@ const checkAvailability = asyncHandler(async (req, res) => {
   return successResponse(res, "Availability checked", availability);
 });
 
+const getCancellationPolicy = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const validatedId = validateId(id);
+
+  const policy = await reservationService.getCancellationPolicy(
+    validatedId,
+    req.user.id,
+    req.user.role
+  );
+
+  return successResponse(res, "Cancellation policy retrieved successfully", policy);
+});
+
 module.exports = {
   checkAvailability,
   createReservation,
   getMyReservations,
   getReservationById,
   cancelReservation,
+  getCancellationPolicy,
   getOwnerReservations,
   getAdminReservations,
   updateReservationStatus,

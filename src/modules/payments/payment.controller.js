@@ -1,3 +1,4 @@
+const Joi = require("joi");
 const paymentService = require("./payment.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
@@ -9,6 +10,7 @@ const {
   validateCreateOwnerPaymentAccount,
   validateUpdateOwnerPaymentAccount,
 } = require("./payment.validation");
+const { validateId } = require("../reservations/reservation.validation");
 
 // ─── Customer ──────────────────────────────────────────────────────
 
@@ -120,10 +122,7 @@ const deleteOwnerPaymentAccount = asyncHandler(async (req, res) => {
     return errorResponse(res, "Invalid payment account ID", 400);
   }
 
-  const account = await paymentService.deleteOwnerPaymentAccount(
-    req.user.id,
-    accountId
-  );
+  const account = await paymentService.deleteOwnerPaymentAccount(req.user.id, accountId);
   return successResponse(res, "Payment account deleted successfully", account);
 });
 
@@ -352,6 +351,133 @@ const getOwnerPendingVerificationPayments = asyncHandler(async (req, res) => {
   );
 });
 
+// ─── Refund Request Endpoints ────────────────────────────────────
+
+/**
+ * POST /api/payments/:id/refund-request
+ * Customer only — create a refund request for a paid payment.
+ */
+const createRefundRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { amount, reason } = req.body;
+
+  // Validate input
+  const schema = Joi.object({
+    amount: Joi.number().positive().required(),
+    reason: Joi.string().min(10).max(500).required(),
+  });
+
+  const { error, value } = schema.validate({ amount, reason });
+  if (error) {
+    const err = new Error(error.details[0].message);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validatedId = validateId(id);
+  const refundRequest = await paymentService.createRefundRequest(
+    validatedId,
+    req.user.id,
+    value.amount,
+    value.reason
+  );
+
+  return successResponse(res, "Refund request created successfully", refundRequest, 201);
+});
+
+/**
+ * GET /api/payments/refund-requests/my
+ * Customer only — list refund requests for authenticated customer.
+ */
+const getMyRefundRequests = asyncHandler(async (req, res) => {
+  const { limit = 50 } = req.query;
+
+  const validatedLimit = Math.min(parseInt(limit) || 50, 100);
+
+  const refundRequests = await paymentService.getMyRefundRequests(
+    req.user.id,
+    validatedLimit
+  );
+
+  return successResponse(res, "Refund requests retrieved successfully", refundRequests);
+});
+
+/**
+ * GET /api/admin/refund-requests
+ * Admin only — list pending refund requests.
+ */
+const getPendingRefundRequests = asyncHandler(async (req, res) => {
+  const { limit = 50 } = req.query;
+
+  const validatedLimit = Math.min(parseInt(limit) || 50, 100);
+
+  const refundRequests = await paymentService.getPendingRefundRequests(validatedLimit);
+
+  return successResponse(
+    res,
+    "Pending refund requests retrieved successfully",
+    refundRequests
+  );
+});
+
+/**
+ * PATCH /api/admin/refund-requests/:id/approve
+ * Admin only — approve a refund request.
+ */
+const approveRefundRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { decision_note } = req.body;
+
+  const schema = Joi.object({
+    decision_note: Joi.string().max(500).optional(),
+  });
+
+  const { error, value } = schema.validate({ decision_note });
+  if (error) {
+    const err = new Error(error.details[0].message);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validatedId = validateId(id);
+  const refundRequest = await paymentService.approveRefundRequest(
+    req.user.id,
+    validatedId,
+    value.decision_note || ""
+  );
+
+  return successResponse(res, "Refund request approved successfully", refundRequest);
+});
+
+/**
+ * PATCH /api/admin/refund-requests/:id/reject
+ * Admin only — reject a refund request.
+ */
+const rejectRefundRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { decision_note } = req.body;
+
+  const schema = Joi.object({
+    decision_note: Joi.string().max(500).optional(),
+  });
+
+  const { error, value } = schema.validate({ decision_note });
+  if (error) {
+    const err = new Error(error.details[0].message);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validatedId = validateId(id);
+  const refundRequest = await paymentService.rejectRefundRequest(
+    req.user.id,
+    validatedId,
+    value.decision_note || ""
+  );
+
+  return successResponse(res, "Refund request rejected successfully", refundRequest);
+});
+
 module.exports = {
   createPayment,
   getMyPayments,
@@ -375,4 +501,9 @@ module.exports = {
   refundPayment,
   getPendingVerificationPayments,
   getOwnerPendingVerificationPayments,
+  createRefundRequest,
+  getMyRefundRequests,
+  getPendingRefundRequests,
+  approveRefundRequest,
+  rejectRefundRequest,
 };

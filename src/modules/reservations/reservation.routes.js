@@ -24,6 +24,7 @@ router.get(
   reservationController.getMyReservations
 );
 router.get("/:id", reservationController.getReservationById);
+router.get("/:id/cancellation-policy", reservationController.getCancellationPolicy);
 router.patch(
   "/:id/cancel",
   roleMiddleware(ROLES.CUSTOMER),

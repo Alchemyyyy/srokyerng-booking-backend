@@ -101,11 +101,7 @@ router.patch(
   paymentController.uploadReceipt
 );
 
-router.get(
-  "/:id/proof",
-  authMiddleware,
-  paymentController.getPaymentProof
-);
+router.get("/:id/proof", authMiddleware, paymentController.getPaymentProof);
 
 router.get("/:id", authMiddleware, paymentController.getPaymentById);
 
@@ -115,6 +111,21 @@ router.post(
   roleMiddleware(ROLES.CUSTOMER),
   handleReceiptUpload,
   paymentController.uploadReceipt
+);
+
+// ─── Refund Request routes ───────────────────────────────────────────
+router.post(
+  "/:id/refund-request",
+  authMiddleware,
+  roleMiddleware(ROLES.CUSTOMER),
+  paymentController.createRefundRequest
+);
+
+router.get(
+  "/refund-requests/my",
+  authMiddleware,
+  roleMiddleware(ROLES.CUSTOMER),
+  paymentController.getMyRefundRequests
 );
 
 module.exports = router;

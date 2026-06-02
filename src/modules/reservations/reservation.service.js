@@ -31,8 +31,7 @@ const createReservation = async (customerId, reservationData) => {
     throw error;
   }
 
-  const { room_id, check_in_date, check_out_date, total_guests, special_request } =
-    value;
+  const { room_id, check_in_date, check_out_date, total_guests, special_request } = value;
 
   // Find room with property details
   const room = await reservationModel.findRoomById(room_id);
@@ -265,6 +264,34 @@ const checkAvailability = async (roomId, checkInDate, checkOutDate) => {
   return availability;
 };
 
+const getCancellationPolicy = async (
+  reservationId,
+  requestingUserId,
+  requestingUserRole
+) => {
+  const reservation = await reservationModel.findReservationById(reservationId);
+
+  if (!reservation) {
+    const error = new Error("Reservation not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const hasAccess =
+    requestingUserRole === "admin" ||
+    reservation.customer_id === requestingUserId ||
+    (requestingUserRole === "owner" && reservation.owner_id === requestingUserId);
+
+  if (!hasAccess) {
+    const error = new Error("You don't have permission to view this reservation");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const cancellationPolicyModule = require("./cancellation-policy");
+  return cancellationPolicyModule.getCancellationPolicy(reservation);
+};
+
 module.exports = {
   calculateTotalNights,
   calculateTotalAmount,
@@ -274,6 +301,7 @@ module.exports = {
   getOwnerReservations,
   getAllReservations,
   cancelReservation,
+  getCancellationPolicy,
   updateReservationStatus,
   checkAvailability,
 };
