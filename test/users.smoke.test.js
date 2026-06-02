@@ -6,6 +6,9 @@ const userController = require("../src/modules/users/user.controller");
 const userServicePath = require.resolve("../src/modules/users/user.service");
 const userModelPath = require.resolve("../src/modules/users/user.model");
 const hashPasswordPath = require.resolve("../src/utils/hashPassword");
+const notificationServicePath = require.resolve(
+  "../src/modules/notifications/notification.service"
+);
 
 const createRes = () => {
   return {
@@ -22,11 +25,12 @@ const createRes = () => {
   };
 };
 
-const loadUserService = ({ userModel, hashPassword, comparePassword }) => {
+const loadUserService = ({ userModel, hashPassword, comparePassword, notificationService }) => {
   const originalCache = {
     userService: require.cache[userServicePath],
     userModel: require.cache[userModelPath],
     hashPassword: require.cache[hashPasswordPath],
+    notificationService: require.cache[notificationServicePath],
   };
 
   delete require.cache[userServicePath];
@@ -45,6 +49,17 @@ const loadUserService = ({ userModel, hashPassword, comparePassword }) => {
       comparePassword,
     },
   };
+  require.cache[notificationServicePath] = {
+    id: notificationServicePath,
+    filename: notificationServicePath,
+    loaded: true,
+    exports: notificationService || {
+      NOTIFICATION_TYPES: {
+        PASSWORD_CHANGED: "password_changed",
+      },
+      notifyUserSafely: async () => {},
+    },
+  };
 
   const userService = require(userServicePath);
 
@@ -52,11 +67,13 @@ const loadUserService = ({ userModel, hashPassword, comparePassword }) => {
     delete require.cache[userServicePath];
     delete require.cache[userModelPath];
     delete require.cache[hashPasswordPath];
+    delete require.cache[notificationServicePath];
 
     const pathByKey = {
       userService: userServicePath,
       userModel: userModelPath,
       hashPassword: hashPasswordPath,
+      notificationService: notificationServicePath,
     };
 
     Object.entries(originalCache).forEach(([key, value]) => {
@@ -375,6 +392,14 @@ test("user service changes password after verifying the current password", async
       calls.comparePassword = { password, hash };
       return true;
     },
+    notificationService: {
+      NOTIFICATION_TYPES: {
+        PASSWORD_CHANGED: "password_changed",
+      },
+      notifyUserSafely: async (payload) => {
+        calls.notifyUserSafely = payload;
+      },
+    },
   });
 
   try {
@@ -392,6 +417,13 @@ test("user service changes password after verifying the current password", async
       userId: 1,
       passwordHash: "new-hash",
     });
+    assert.equal(calls.notifyUserSafely.userId, 1);
+    assert.equal(calls.notifyUserSafely.type, "password_changed");
+    assert.equal(calls.notifyUserSafely.critical, true);
+    assert.equal(
+      calls.notifyUserSafely.email.subject,
+      "Your SrokYerng Booking password was changed"
+    );
   } finally {
     restore();
   }
