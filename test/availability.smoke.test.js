@@ -40,7 +40,7 @@ const loadService = (modelMock) => {
 test("checkAvailability throws 404 when room not found", async () => {
   const { svc, restore } = loadService({ findRoomById: async () => null });
   try {
-    await assert.rejects(svc.checkAvailability(1, "2026-06-01", "2026-06-05"), (err) => {
+    await assert.rejects(svc.checkAvailability(1, "2030-06-01", "2030-06-05"), (err) => {
       assert.equal(err.statusCode, 404);
       return true;
     });
@@ -56,7 +56,7 @@ test("checkAvailability returns availability when room exists", async () => {
   });
 
   try {
-    const result = await svc.checkAvailability(1, "2026-06-01", "2026-06-05");
+    const result = await svc.checkAvailability(1, "2030-06-01", "2030-06-05");
     assert.equal(result.isAvailable, true);
     assert.equal(result.availableRooms, 2);
   } finally {
@@ -98,8 +98,8 @@ test("createReservation rejects when guests exceed capacity", async () => {
     await assert.rejects(
       svc.createReservation(1, {
         room_id: 1,
-        check_in_date: "2026-06-01",
-        check_out_date: "2026-06-05",
+        check_in_date: "2030-06-01",
+        check_out_date: "2030-06-05",
         total_guests: 5,
       }),
       (err) => {
@@ -123,8 +123,8 @@ test("createReservation rejects when not available", async () => {
     await assert.rejects(
       svc.createReservation(1, {
         room_id: 1,
-        check_in_date: "2026-06-01",
-        check_out_date: "2026-06-05",
+        check_in_date: "2030-06-01",
+        check_out_date: "2030-06-05",
         total_guests: 1,
       }),
       (err) => {

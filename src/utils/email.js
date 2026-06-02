@@ -1,33 +1,7 @@
-const nodemailer = require("nodemailer");
-const env = require("../config/env");
-
-let transporter;
-
-const getTransporter = () => {
-  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD || !env.SMTP_FROM) {
-    const error = new Error("SMTP email configuration is missing");
-    error.statusCode = 500;
-    throw error;
-  }
-
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
-      auth: {
-        user: env.SMTP_USER,
-        pass: env.SMTP_PASSWORD,
-      },
-    });
-  }
-
-  return transporter;
-};
+const emailService = require("../services/email.service");
 
 const sendPasswordResetEmail = async ({ to, fullName, resetUrl }) => {
-  await getTransporter().sendMail({
-    from: env.SMTP_FROM,
+  await emailService.sendEmail({
     to,
     subject: "Reset your SrokYerng Booking password",
     text: [
@@ -48,8 +22,7 @@ const sendPasswordResetEmail = async ({ to, fullName, resetUrl }) => {
 };
 
 const sendEmailVerificationEmail = async ({ to, fullName, verificationUrl }) => {
-  await getTransporter().sendMail({
-    from: env.SMTP_FROM,
+  await emailService.sendEmail({
     to,
     subject: "Verify your SrokYerng Booking email",
     text: [

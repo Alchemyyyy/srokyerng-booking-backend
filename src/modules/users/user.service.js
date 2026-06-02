@@ -1,6 +1,7 @@
 const userModel = require("./user.model");
 const { comparePassword, hashPassword } = require("../../utils/hashPassword");
 const { USER_STATUS } = require("../../constants/statuses");
+const notificationService = require("../notifications/notification.service");
 
 const toSafeUser = (user) => {
   const safeUser = {
@@ -87,6 +88,19 @@ const changeMyPassword = async (userId, { current_password, new_password }) => {
 
   const passwordHash = await hashPassword(new_password);
   await userModel.updatePassword(userId, passwordHash);
+  await notificationService.notifyUserSafely({
+    userId,
+    type: notificationService.NOTIFICATION_TYPES.PASSWORD_CHANGED,
+    title: "Password changed",
+    message: "Your account password was changed successfully.",
+    critical: true,
+    email: {
+      subject: "Your SrokYerng Booking password was changed",
+      title: "Password changed",
+      message:
+        "Your account password was changed successfully. If this was not you, reset your password immediately.",
+    },
+  });
 };
 
 const updateMyProfileImage = async (userId, file) => {

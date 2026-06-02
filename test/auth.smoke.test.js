@@ -15,6 +15,9 @@ const authModelPath = require.resolve("../src/modules/auth/auth.model");
 const hashPasswordPath = require.resolve("../src/utils/hashPassword");
 const generateTokenPath = require.resolve("../src/utils/generateToken");
 const emailPath = require.resolve("../src/utils/email");
+const notificationServicePath = require.resolve(
+  "../src/modules/notifications/notification.service"
+);
 
 const createRes = () => {
   return {
@@ -31,13 +34,20 @@ const createRes = () => {
   };
 };
 
-const loadAuthService = ({ authModel, hashPassword, comparePassword, generateToken }) => {
+const loadAuthService = ({
+  authModel,
+  hashPassword,
+  comparePassword,
+  generateToken,
+  notificationService,
+}) => {
   const originalCache = {
     authService: require.cache[authServicePath],
     authModel: require.cache[authModelPath],
     hashPassword: require.cache[hashPasswordPath],
     generateToken: require.cache[generateTokenPath],
     email: require.cache[emailPath],
+    notificationService: require.cache[notificationServicePath],
   };
 
   delete require.cache[authServicePath];
@@ -72,6 +82,18 @@ const loadAuthService = ({ authModel, hashPassword, comparePassword, generateTok
         authModel.sendEmailVerificationEmail || (async () => {}),
     },
   };
+  require.cache[notificationServicePath] = {
+    id: notificationServicePath,
+    filename: notificationServicePath,
+    loaded: true,
+    exports: notificationService || {
+      NOTIFICATION_TYPES: {
+        PASSWORD_CHANGED: "password_changed",
+        SYSTEM: "system",
+      },
+      notifyUserSafely: async () => {},
+    },
+  };
 
   const authService = require(authServicePath);
 
@@ -81,6 +103,7 @@ const loadAuthService = ({ authModel, hashPassword, comparePassword, generateTok
     delete require.cache[hashPasswordPath];
     delete require.cache[generateTokenPath];
     delete require.cache[emailPath];
+    delete require.cache[notificationServicePath];
 
     Object.entries(originalCache).forEach(([key, value]) => {
       if (!value) {
@@ -93,6 +116,7 @@ const loadAuthService = ({ authModel, hashPassword, comparePassword, generateTok
         hashPassword: hashPasswordPath,
         generateToken: generateTokenPath,
         email: emailPath,
+        notificationService: notificationServicePath,
       };
 
       require.cache[pathByKey[key]] = value;
@@ -372,6 +396,15 @@ test("auth service verifies email with a valid verification token", async () => 
     hashPassword: async () => "hashed-password",
     comparePassword: async () => false,
     generateToken: () => "token",
+    notificationService: {
+      NOTIFICATION_TYPES: {
+        PASSWORD_CHANGED: "password_changed",
+        SYSTEM: "system",
+      },
+      notifyUserSafely: async (payload) => {
+        calls.notifyUserSafely = payload;
+      },
+    },
   });
 
   try {
@@ -380,6 +413,12 @@ test("auth service verifies email with a valid verification token", async () => 
     assert.equal(calls.findValidEmailVerificationToken, tokenHash);
     assert.equal(calls.markEmailAsVerified, 1);
     assert.equal(calls.markEmailVerificationTokenAsUsed, 8);
+    assert.deepEqual(calls.notifyUserSafely, {
+      userId: 1,
+      type: "system",
+      title: "Email verified",
+      message: "Your email address has been verified successfully.",
+    });
   } finally {
     restore();
   }
@@ -554,6 +593,15 @@ test("auth service resets password with a valid reset token", async () => {
     },
     comparePassword: async () => false,
     generateToken: () => "token",
+    notificationService: {
+      NOTIFICATION_TYPES: {
+        PASSWORD_CHANGED: "password_changed",
+        SYSTEM: "system",
+      },
+      notifyUserSafely: async (payload) => {
+        calls.notifyUserSafely = payload;
+      },
+    },
   });
 
   try {
@@ -570,6 +618,13 @@ test("auth service resets password with a valid reset token", async () => {
     });
     assert.equal(calls.markPasswordResetTokenAsUsed, 5);
     assert.equal(calls.revokeRefreshTokensForUser, 1);
+    assert.equal(calls.notifyUserSafely.userId, 1);
+    assert.equal(calls.notifyUserSafely.type, "password_changed");
+    assert.equal(calls.notifyUserSafely.critical, true);
+    assert.equal(
+      calls.notifyUserSafely.email.subject,
+      "Your SrokYerng Booking password was reset"
+    );
   } finally {
     restore();
   }
