@@ -478,6 +478,102 @@ const rejectRefundRequest = asyncHandler(async (req, res) => {
   return successResponse(res, "Refund request rejected successfully", refundRequest);
 });
 
+/**
+ * GET /api/owner/refund-requests
+ * Owner only — list refund requests for own properties.
+ */
+const getOwnerRefundRequests = asyncHandler(async (req, res) => {
+  const { limit = 50 } = req.query;
+
+  const validatedLimit = Math.min(parseInt(limit) || 50, 100);
+
+  const refundRequests = await paymentService.getOwnerRefundRequests(
+    req.user.id,
+    validatedLimit
+  );
+
+  return successResponse(res, "Refund requests retrieved successfully", refundRequests);
+});
+
+/**
+ * GET /api/owner/refund-requests/pending
+ * Owner only — list pending refund requests for own properties.
+ */
+const getOwnerPendingRefundRequests = asyncHandler(async (req, res) => {
+  const { limit = 50 } = req.query;
+
+  const validatedLimit = Math.min(parseInt(limit) || 50, 100);
+
+  const refundRequests = await paymentService.getOwnerPendingRefundRequests(
+    req.user.id,
+    validatedLimit
+  );
+
+  return successResponse(
+    res,
+    "Pending refund requests retrieved successfully",
+    refundRequests
+  );
+});
+
+/**
+ * PATCH /api/owner/refund-requests/:id/approve
+ * Owner only — approve a refund request for own property.
+ */
+const approveOwnerRefundRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { decision_note } = req.body;
+
+  const schema = Joi.object({
+    decision_note: Joi.string().max(500).optional(),
+  });
+
+  const { error, value } = schema.validate({ decision_note });
+  if (error) {
+    const err = new Error(error.details[0].message);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validatedId = validateId(id);
+  const refundRequest = await paymentService.approveOwnerRefundRequest(
+    req.user.id,
+    validatedId,
+    value.decision_note || ""
+  );
+
+  return successResponse(res, "Refund request approved successfully", refundRequest);
+});
+
+/**
+ * PATCH /api/owner/refund-requests/:id/reject
+ * Owner only — reject a refund request for own property.
+ */
+const rejectOwnerRefundRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { decision_note } = req.body;
+
+  const schema = Joi.object({
+    decision_note: Joi.string().max(500).optional(),
+  });
+
+  const { error, value } = schema.validate({ decision_note });
+  if (error) {
+    const err = new Error(error.details[0].message);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validatedId = validateId(id);
+  const refundRequest = await paymentService.rejectOwnerRefundRequest(
+    req.user.id,
+    validatedId,
+    value.decision_note || ""
+  );
+
+  return successResponse(res, "Refund request rejected successfully", refundRequest);
+});
+
 module.exports = {
   createPayment,
   getMyPayments,
@@ -506,4 +602,8 @@ module.exports = {
   getPendingRefundRequests,
   approveRefundRequest,
   rejectRefundRequest,
+  getOwnerRefundRequests,
+  getOwnerPendingRefundRequests,
+  approveOwnerRefundRequest,
+  rejectOwnerRefundRequest,
 };

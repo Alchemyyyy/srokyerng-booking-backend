@@ -8,16 +8,6 @@ const reservationServicePath =
 const reservationModelPath =
   require.resolve("../src/modules/reservations/reservation.model");
 
-// Mock data for testing
-const mockRoom = {
-  id: 1,
-  price_per_night: 100,
-  max_guests: 4,
-  property_status_id: 2, // approved
-  property_id: 1,
-  owner_id: 2,
-};
-
 const mockReservation = {
   id: 1,
   customer_id: 1,

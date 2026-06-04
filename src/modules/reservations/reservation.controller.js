@@ -159,6 +159,35 @@ const checkAvailability = asyncHandler(async (req, res) => {
   return successResponse(res, "Availability checked", availability);
 });
 
+const requestRefundByReservation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { amount, reason } = req.body;
+
+  const Joi = require("joi");
+  const schema = Joi.object({
+    amount: Joi.number().positive().required(),
+    reason: Joi.string().min(10).max(500).required(),
+  });
+
+  const { error, value } = schema.validate({ amount, reason });
+  if (error) {
+    const err = new Error(error.details[0].message);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validatedId = validateId(id);
+  const paymentService = require("../payments/payment.service");
+  const refundRequest = await paymentService.createRefundRequestByReservation(
+    validatedId,
+    req.user.id,
+    value.amount,
+    value.reason
+  );
+
+  return successResponse(res, "Refund request created successfully", refundRequest, 201);
+});
+
 const getCancellationPolicy = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -183,4 +212,5 @@ module.exports = {
   getOwnerReservations,
   getAdminReservations,
   updateReservationStatus,
+  requestRefundByReservation,
 };

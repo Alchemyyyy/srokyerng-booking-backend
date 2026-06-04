@@ -53,6 +53,21 @@ router.patch(
   paymentController.activateOwnerPaymentAccount
 );
 
+// Refund request endpoints
+router.get("/refund-requests", paymentController.getOwnerRefundRequests);
+router.get(
+  "/refund-requests/pending",
+  paymentController.getOwnerPendingRefundRequests
+);
+router.patch(
+  "/refund-requests/:id/approve",
+  paymentController.approveOwnerRefundRequest
+);
+router.patch(
+  "/refund-requests/:id/reject",
+  paymentController.rejectOwnerRefundRequest
+);
+
 router.get("/reviews", ownerController.getReviews);
 
 // Analytics endpoints

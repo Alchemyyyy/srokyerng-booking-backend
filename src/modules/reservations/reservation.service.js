@@ -197,7 +197,6 @@ const cancelReservation = async (
   await reservationModel.updateReservationStatus(
     reservationId,
     RESERVATION_STATUS.CANCELLED,
-    customerId,
     cancellationReason || "Cancelled by customer"
   );
 
@@ -239,7 +238,7 @@ const updateReservationStatus = async (reservationId, status, adminId, reason = 
   }
 
   // Update status
-  await reservationModel.updateReservationStatus(reservationId, status, adminId, reason);
+  await reservationModel.updateReservationStatus(reservationId, status, reason);
 
   const updatedReservation = await reservationModel.findReservationById(reservationId);
 

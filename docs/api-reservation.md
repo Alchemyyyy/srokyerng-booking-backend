@@ -5,7 +5,9 @@
 - `POST /reservations` — Create reservation (auth + customer)
 - `GET /reservations/my` — Get current customer reservations (auth + customer)
 - `GET /reservations/:id` — Get reservation by ID (auth required)
+- `GET /reservations/:id/cancellation-policy` — Get cancellation policy for a reservation (auth required)
 - `PATCH /reservations/:id/cancel` — Cancel reservation (auth + customer)
+- `POST /reservations/:id/refund-request` — Request refund by reservation (auth + customer)
 - `GET /owner/reservations` — List owner reservations (auth + owner)
 - `GET /owner/dashboard` — Owner dashboard counts (auth + owner)
 - `GET /admin/reservations` — List all reservations (auth + admin)
@@ -163,6 +165,50 @@ Returns:
 }
 ```
 
+### Request Refund by Reservation
+
+```text
+POST /reservations/:id/refund-request
+```
+
+Requires authentication and `customer` role.
+
+Request body:
+
+```json
+{
+  "amount": 400.00,
+  "reason": "I cancelled my reservation and would like a full refund"
+}
+```
+
+Notes:
+
+- `amount` is required, must be positive and cannot exceed the payment amount.
+- `reason` is required, must be between 10 and 500 characters.
+- Looks up the payment associated with the reservation automatically.
+- Only `paid` payments are eligible for refund request.
+- Customer can only request refunds for their own reservations.
+- Duplicate pending refund requests are rejected.
+
+Success response (201):
+
+```json
+{
+  "success": true,
+  "message": "Refund request created successfully",
+  "data": {
+    "id": 1,
+    "payment_id": 100,
+    "requested_by": 10,
+    "amount": 400.00,
+    "reason": "I cancelled my reservation and would like a full refund",
+    "refund_status": "requested",
+    "requested_at": "2026-06-04T05:00:00.000Z"
+  }
+}
+```
+
 ### Owner Reservation Endpoints
 
 #### List Owner Reservations
@@ -300,6 +346,54 @@ Returns:
   }
 }
 ```
+
+### Get Cancellation Policy
+
+```text
+GET /reservations/:id/cancellation-policy
+```
+
+Requires authentication.
+
+Access control:
+
+- The customer who owns the reservation
+- The property owner
+- Admin users
+
+Returns detailed information about the cancellation policy and eligibility for a specific reservation.
+
+**Note:** No request body is required.
+
+Returns:
+
+```json
+{
+  "success": true,
+  "message": "Cancellation policy retrieved successfully",
+  "data": {
+    "reservation_id": 1,
+    "reservation_status": "confirmed",
+    "check_in_date": "2026-05-20",
+    "cancellation_deadline_hours": 24,
+    "cancellation_eligibility": {
+      "can_cancel": true,
+      "reasons": [],
+      "deadline": "2026-05-19T00:00:00.000Z",
+      "hours_until_deadline": 9,
+      "status": "confirmed"
+    },
+    "policy_summary": {
+      "description": "Cancellation is allowed up to 24 hours before check-in",
+      "full_refund_deadline": "2026-05-19T00:00:00.000Z",
+      "late_cancellation_refund_percentage": 50,
+      "non_refundable_after": "24 hours before check-in"
+    }
+  }
+}
+```
+
+If the reservation cannot be cancelled (e.g., already cancelled, past check-in, or passed deadline), the `cancellation_eligibility.can_cancel` field will be `false` with a list of `reasons` explaining why.
 
 ### Reservation Status Values
 

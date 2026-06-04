@@ -1,107 +1,131 @@
-const db = require("../../config/db");
+const pool = require("../../config/db");
 
-const findRefundRequestById = (id) => {
-  return new Promise((resolve, reject) => {
-    const query = "SELECT * FROM refund_requests WHERE id = ?";
-    db.query(query, [id], (error, results) => {
-      if (error) return reject(error);
-      resolve(results[0]);
-    });
-  });
+const findRefundRequestById = async (id) => {
+  const [rows] = await pool.query("SELECT * FROM refund_requests WHERE id = ?", [id]);
+  return rows[0];
 };
 
-const findRefundRequestsByPaymentId = (paymentId) => {
-  return new Promise((resolve, reject) => {
-    const query =
-      "SELECT * FROM refund_requests WHERE payment_id = ? ORDER BY requested_at DESC";
-    db.query(query, [paymentId], (error, results) => {
-      if (error) return reject(error);
-      resolve(results);
-    });
-  });
+const findRefundRequestsByPaymentId = async (paymentId) => {
+  const [rows] = await pool.query(
+    "SELECT * FROM refund_requests WHERE payment_id = ? ORDER BY requested_at DESC",
+    [paymentId]
+  );
+  return rows;
 };
 
-const findRefundRequestsByUserId = (userId, limit = 50) => {
-  return new Promise((resolve, reject) => {
-    const query = `
-      SELECT * FROM refund_requests 
-      WHERE requested_by = ? 
-      ORDER BY requested_at DESC 
-      LIMIT ?
-    `;
-    db.query(query, [userId, limit], (error, results) => {
-      if (error) return reject(error);
-      resolve(results);
-    });
-  });
+const findRefundRequestsByUserId = async (userId, limit = 50) => {
+  const [rows] = await pool.query(
+    `SELECT * FROM refund_requests 
+     WHERE requested_by = ? 
+     ORDER BY requested_at DESC 
+     LIMIT ?`,
+    [userId, limit]
+  );
+  return rows;
 };
 
-const findPendingRefundRequests = (limit = 50) => {
-  return new Promise((resolve, reject) => {
-    const query = `
-      SELECT * FROM refund_requests 
-      WHERE refund_status = 'requested' 
-      ORDER BY requested_at ASC 
-      LIMIT ?
-    `;
-    db.query(query, [limit], (error, results) => {
-      if (error) return reject(error);
-      resolve(results);
-    });
-  });
+const findPendingRefundRequests = async (limit = 50) => {
+  const [rows] = await pool.query(
+    `SELECT * FROM refund_requests 
+     WHERE refund_status = 'requested' 
+     ORDER BY requested_at ASC 
+     LIMIT ?`,
+    [limit]
+  );
+  return rows;
 };
 
-const createRefundRequest = (paymentId, requestedBy, amount, reason) => {
-  return new Promise((resolve, reject) => {
-    const query = `
-      INSERT INTO refund_requests 
-      (payment_id, requested_by, amount, reason) 
-      VALUES (?, ?, ?, ?)
-    `;
-    db.query(query, [paymentId, requestedBy, amount, reason], (error, results) => {
-      if (error) return reject(error);
-      resolve(results.insertId);
-    });
-  });
+const createRefundRequest = async (paymentId, requestedBy, amount, reason) => {
+  const [result] = await pool.query(
+    `INSERT INTO refund_requests 
+     (payment_id, requested_by, amount, reason) 
+     VALUES (?, ?, ?, ?)`,
+    [paymentId, requestedBy, amount, reason]
+  );
+  return result.insertId;
 };
 
-const updateRefundRequestStatus = (id, status, handledBy, decisionNote) => {
-  return new Promise((resolve, reject) => {
-    const query = `
-      UPDATE refund_requests 
-      SET refund_status = ?, handled_by = ?, decision_note = ?, handled_at = NOW() 
-      WHERE id = ?
-    `;
-    db.query(query, [status, handledBy, decisionNote, id], (error, results) => {
-      if (error) return reject(error);
-      resolve(results.affectedRows > 0);
-    });
-  });
+const updateRefundRequestStatus = async (id, status, handledBy, decisionNote) => {
+  const [result] = await pool.query(
+    `UPDATE refund_requests 
+     SET refund_status = ?, handled_by = ?, decision_note = ?, handled_at = NOW() 
+     WHERE id = ?`,
+    [status, handledBy, decisionNote, id]
+  );
+  return result.affectedRows > 0;
 };
 
-const getRefundRequestStats = (startDate = null, endDate = null) => {
-  return new Promise((resolve, reject) => {
-    let query = `
-      SELECT 
-        refund_status,
-        COUNT(*) as count,
-        COALESCE(SUM(amount), 0) as total_amount
-      FROM refund_requests
-    `;
-    const params = [];
+const findRefundRequestsByOwner = async (ownerId, limit = 50) => {
+  const [rows] = await pool.query(
+    `SELECT rr.*,
+            p.amount as payment_amount,
+            p.reservation_id,
+            p.owner_id,
+            res.check_in_date,
+            res.check_out_date,
+            res.reservation_status,
+            rm.room_name,
+            prop.property_name,
+            u.full_name as customer_name
+     FROM refund_requests rr
+     JOIN payments p ON rr.payment_id = p.id
+     JOIN reservations res ON p.reservation_id = res.id
+     JOIN rooms rm ON res.room_id = rm.id
+     JOIN properties prop ON rm.property_id = prop.id
+     JOIN users u ON res.customer_id = u.id
+     WHERE p.owner_id = ?
+     ORDER BY rr.requested_at DESC
+     LIMIT ?`,
+    [ownerId, limit]
+  );
+  return rows;
+};
 
-    if (startDate && endDate) {
-      query += " WHERE requested_at BETWEEN ? AND ?";
-      params.push(startDate, endDate);
-    }
+const findPendingRefundRequestsByOwner = async (ownerId, limit = 50) => {
+  const [rows] = await pool.query(
+    `SELECT rr.*,
+            p.amount as payment_amount,
+            p.reservation_id,
+            p.owner_id,
+            res.check_in_date,
+            res.check_out_date,
+            res.reservation_status,
+            rm.room_name,
+            prop.property_name,
+            u.full_name as customer_name
+     FROM refund_requests rr
+     JOIN payments p ON rr.payment_id = p.id
+     JOIN reservations res ON p.reservation_id = res.id
+     JOIN rooms rm ON res.room_id = rm.id
+     JOIN properties prop ON rm.property_id = prop.id
+     JOIN users u ON res.customer_id = u.id
+     WHERE p.owner_id = ? AND rr.refund_status = 'requested'
+     ORDER BY rr.requested_at ASC
+     LIMIT ?`,
+    [ownerId, limit]
+  );
+  return rows;
+};
 
-    query += " GROUP BY refund_status";
+const getRefundRequestStats = async (startDate = null, endDate = null) => {
+  let query = `
+    SELECT 
+      refund_status,
+      COUNT(*) as count,
+      COALESCE(SUM(amount), 0) as total_amount
+    FROM refund_requests
+  `;
+  const params = [];
 
-    db.query(query, params, (error, results) => {
-      if (error) return reject(error);
-      resolve(results);
-    });
-  });
+  if (startDate && endDate) {
+    query += " WHERE requested_at BETWEEN ? AND ?";
+    params.push(startDate, endDate);
+  }
+
+  query += " GROUP BY refund_status";
+
+  const [rows] = await pool.query(query, params);
+  return rows;
 };
 
 module.exports = {
@@ -109,6 +133,8 @@ module.exports = {
   findRefundRequestsByPaymentId,
   findRefundRequestsByUserId,
   findPendingRefundRequests,
+  findRefundRequestsByOwner,
+  findPendingRefundRequestsByOwner,
   createRefundRequest,
   updateRefundRequestStatus,
   getRefundRequestStats,

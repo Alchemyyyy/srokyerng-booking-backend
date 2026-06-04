@@ -6,7 +6,7 @@ const authMiddleware = require("../../middleware/auth.middleware");
 const roleMiddleware = require("../../middleware/role.middleware");
 const ROLES = require("../../constants/roles");
 const paymentController = require("../payments/payment.controller");
-const analyticsController = require("./analytics.controller");
+const analyticsController = require("../analytics/analytics.controller");
 
 const router = express.Router();
 
