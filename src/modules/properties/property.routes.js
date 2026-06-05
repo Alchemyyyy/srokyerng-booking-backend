@@ -101,4 +101,6 @@ router.get(
 
 router.get("/:propertyId/availability", propertyController.checkPropertyAvailability);
 
+router.get("/:propertyId/availability-calendar", propertyController.getPropertyCalendar);
+
 module.exports = router;

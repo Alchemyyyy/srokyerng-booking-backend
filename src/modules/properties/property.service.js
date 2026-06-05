@@ -2,6 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const property = require("./property.model");
 
+const notificationService = require("../notifications/notification.service");
+
 const {
   createPropertySchema,
   updatePropertySchema,
@@ -140,6 +142,18 @@ const updateStatus = async (admin_id, property_id, body) => {
     body.approved_at = new Date();
 
     await property.updateStatus(admin_id, property_id, body);
+    const getProperty = await property.findPropertyById(property_id);
+
+    await notificationService.notifyUserSafely({
+      userId: getProperty.owner_id,
+      type: notificationService.NOTIFICATION_TYPES.PROPERTY_APPROVED,
+      title: "Request approved",
+      message: "Your request has been approved.",
+      data: {
+        property_id,
+      },
+      critical: true,
+    });
   }
 
   // =====================================
@@ -149,6 +163,17 @@ const updateStatus = async (admin_id, property_id, body) => {
     body.approved_at = new Date();
 
     await property.updateStatus(admin_id, property_id, body);
+    const getProperty = await property.findPropertyById(property_id);
+    await notificationService.notifyUserSafely({
+      userId: getProperty.owner_id,
+      type: notificationService.NOTIFICATION_TYPES.PROPERTY_REJECTED,
+      title: "Request rejected",
+      message: "Your request has been rejected.",
+      data: {
+        property_id,
+      },
+      critical: true,
+    });
   }
 
   // =====================================

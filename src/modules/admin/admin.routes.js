@@ -19,10 +19,19 @@ router.get("/properties", adminController.getAll);
 router.patch("/properties/:id/status", adminController.updateStatusProperty);
 router.get("/reviews", reviewController.getAllReviews);
 
-router.get("/payments/pending-verification", paymentController.getPendingVerificationPayments);
+router.get(
+  "/payments/pending-verification",
+  paymentController.getPendingVerificationPayments
+);
 router.get("/payments/:id", paymentController.getPaymentById);
 router.get("/payments/:id/proof", paymentController.getPaymentProof);
 router.get("/payments", paymentController.getAllPayments);
 router.get("/payment-accounts", paymentController.getAdminOwnerPaymentAccounts);
 router.get("/payment-accounts/:id", paymentController.getAdminOwnerPaymentAccountById);
+
+router.get("/reports", adminController.getAllReports);
+router.get("/reports/:id", adminController.getReportByIdAdmin);
+router.patch("/reports/:id/status", adminController.updateStatus);
+router.patch("/reports/:id/resolve", adminController.resolveReport);
+
 module.exports = router;

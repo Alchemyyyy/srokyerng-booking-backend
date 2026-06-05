@@ -46,15 +46,19 @@ router.patch(
   "/payment-accounts/:id/deactivate",
   paymentController.deactivateOwnerPaymentAccount
 );
-router.delete(
-  "/payment-accounts/:id",
-  paymentController.deleteOwnerPaymentAccount
-);
+router.delete("/payment-accounts/:id", paymentController.deleteOwnerPaymentAccount);
 router.patch(
   "/payment-accounts/:id/activate",
   paymentController.activateOwnerPaymentAccount
 );
 
 router.get("/reviews", ownerController.getReviews);
+
+router.get(
+  "/properties/:propertyId/availability-calendar",
+  ownerController.getOwnerPropertyCalendar
+);
+
+router.get("/rooms/:roomId/availability-calendar", ownerController.getOwnerRoomCalendar);
 
 module.exports = router;

@@ -4,6 +4,7 @@ const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
 const property = require("./property.service");
 const room = require("../rooms/room.service");
+const calendar = require("../calendar/calendar.service");
 
 const getAll = asyncHandler(async (req, res) => {
   let result = await property.getAllApproved(req.query);
@@ -159,6 +160,16 @@ const checkPropertyAvailability = asyncHandler(async (req, res) => {
   return successResponse(res, result.message, result.data, result.status);
 });
 
+const getPropertyCalendar = asyncHandler(async (req, res) => {
+  const result = await calendar.getPropertyCalendar(
+    req.params.propertyId,
+    req.query.start_date,
+    req.query.end_date
+  );
+
+  return res.status(result.status).json(result);
+});
+
 module.exports = {
   getAll,
   getDetail,
@@ -176,4 +187,5 @@ module.exports = {
   createRoom,
   getMyRooms,
   checkPropertyAvailability,
+  getPropertyCalendar,
 };
