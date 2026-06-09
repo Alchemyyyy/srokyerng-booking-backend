@@ -2,6 +2,7 @@
 const reservationService = require("./reservation.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
+const notificationService = require("../notifications/notification.service");
 const { validateAvailabilityQuery } = require("./reservation.validation");
 const {
   validateCreateReservation,
@@ -20,6 +21,20 @@ const createReservation = asyncHandler(async (req, res) => {
   }
 
   const reservation = await reservationService.createReservation(req.user.id, value);
+
+  // Notify customer (non-blocking)
+  if (notificationService && notificationService.notifyUserSafely) {
+    notificationService
+      .notifyUserSafely({
+        userId: reservation.customer_id,
+        type: notificationService.NOTIFICATION_TYPES.RESERVATION_CREATED,
+        title: "Reservation created",
+        message: "Your reservation has been created.",
+        data: { reservation_id: reservation.id },
+        critical: false,
+      })
+      .catch(() => {});
+  }
 
   return successResponse(res, "Reservation created successfully", reservation, 201);
 });
@@ -74,6 +89,20 @@ const cancelReservation = asyncHandler(async (req, res) => {
     req.user.id,
     cancellation_reason
   );
+
+  // Notify customer (non-blocking)
+  if (notificationService && notificationService.notifyUserSafely) {
+    notificationService
+      .notifyUserSafely({
+        userId: reservation.customer_id,
+        type: notificationService.NOTIFICATION_TYPES.RESERVATION_CANCELLED,
+        title: "Reservation cancelled",
+        message: "Your reservation has been cancelled.",
+        data: { reservation_id: reservation.id },
+        critical: false,
+      })
+      .catch(() => {});
+  }
 
   return successResponse(res, "Reservation cancelled successfully", reservation);
 });
@@ -139,6 +168,33 @@ const updateReservationStatus = asyncHandler(async (req, res) => {
     req.user.id,
     reason
   );
+
+  // Notify customer on important status changes (non-blocking)
+  if (notificationService && notificationService.notifyUserSafely) {
+    if (status === "confirmed") {
+      notificationService
+        .notifyUserSafely({
+          userId: reservation.customer_id,
+          type: notificationService.NOTIFICATION_TYPES.RESERVATION_CONFIRMED,
+          title: "Reservation confirmed",
+          message: "Your reservation has been confirmed.",
+          data: { reservation_id: reservation.id },
+          critical: true,
+        })
+        .catch(() => {});
+    } else if (status === "cancelled") {
+      notificationService
+        .notifyUserSafely({
+          userId: reservation.customer_id,
+          type: notificationService.NOTIFICATION_TYPES.RESERVATION_CANCELLED,
+          title: "Reservation cancelled",
+          message: "Your reservation has been cancelled.",
+          data: { reservation_id: reservation.id },
+          critical: false,
+        })
+        .catch(() => {});
+    }
+  }
 
   return successResponse(res, "Reservation status updated successfully", reservation);
 });

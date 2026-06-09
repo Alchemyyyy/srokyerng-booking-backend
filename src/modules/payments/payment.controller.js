@@ -2,6 +2,7 @@ const Joi = require("joi");
 const paymentService = require("./payment.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
+const notificationService = require("../notifications/notification.service");
 const {
   validateCreatePayment,
   validateVerifyPayment,
@@ -244,6 +245,21 @@ const uploadReceipt = asyncHandler(async (req, res) => {
   }
 
   const payment = await paymentService.uploadReceipt(req.user.id, paymentId, req.file);
+
+  // Notify owner that a payment has been submitted (non-blocking)
+  if (notificationService && notificationService.notifyUserSafely) {
+    notificationService
+      .notifyUserSafely({
+        userId: payment.owner_id,
+        type: notificationService.NOTIFICATION_TYPES.PAYMENT_SUBMITTED,
+        title: "Payment submitted",
+        message: "A payment receipt has been submitted for your property.",
+        data: { payment_id: payment.id, reservation_id: payment.reservation_id },
+        critical: false,
+      })
+      .catch(() => {});
+  }
+
   return successResponse(res, "Receipt uploaded successfully", payment);
 });
 
@@ -280,6 +296,21 @@ const verifyPayment = asyncHandler(async (req, res) => {
   }
 
   const payment = await paymentService.verifyPayment(req.user.id, paymentId);
+
+  // Notify customer that payment was verified (non-blocking)
+  if (notificationService && notificationService.notifyUserSafely) {
+    notificationService
+      .notifyUserSafely({
+        userId: payment.customer_id,
+        type: notificationService.NOTIFICATION_TYPES.PAYMENT_VERIFIED,
+        title: "Payment verified",
+        message: "Your payment has been verified.",
+        data: { payment_id: payment.id, reservation_id: payment.reservation_id },
+        critical: true,
+      })
+      .catch(() => {});
+  }
+
   return successResponse(res, "Payment verified successfully", payment);
 });
 
@@ -303,6 +334,21 @@ const rejectPayment = asyncHandler(async (req, res) => {
     paymentId,
     value.rejection_reason
   );
+
+  // Notify customer that payment was rejected (non-blocking)
+  if (notificationService && notificationService.notifyUserSafely) {
+    notificationService
+      .notifyUserSafely({
+        userId: payment.customer_id,
+        type: notificationService.NOTIFICATION_TYPES.PAYMENT_REJECTED,
+        title: "Payment rejected",
+        message: `Your payment was rejected${payment.rejection_reason ? ": " + payment.rejection_reason : "."}`,
+        data: { payment_id: payment.id, reservation_id: payment.reservation_id },
+        critical: true,
+      })
+      .catch(() => {});
+  }
+
   return successResponse(res, "Payment rejected successfully", payment);
 });
 
@@ -322,6 +368,21 @@ const refundPayment = asyncHandler(async (req, res) => {
   }
 
   const payment = await paymentService.refundPayment(req.user.id, paymentId);
+
+  // Notify customer that payment was refunded (non-blocking)
+  if (notificationService && notificationService.notifyUserSafely) {
+    notificationService
+      .notifyUserSafely({
+        userId: payment.customer_id,
+        type: notificationService.NOTIFICATION_TYPES.PAYMENT_REFUNDED,
+        title: "Payment refunded",
+        message: "Your payment has been refunded.",
+        data: { payment_id: payment.id, reservation_id: payment.reservation_id },
+        critical: true,
+      })
+      .catch(() => {});
+  }
+
   return successResponse(res, "Payment refunded successfully", payment);
 });
 
