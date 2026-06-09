@@ -288,6 +288,13 @@ const findExistingPaymentForReservation = async (reservationId) => {
   return rows[0];
 };
 
+const findPaymentByReservationId = async (reservationId) => {
+  const [rows] = await pool.query(`${PAYMENT_SELECT} WHERE pay.reservation_id = ? LIMIT 1`, [
+    reservationId,
+  ]);
+  return rows[0];
+};
+
 // ─── CRUD ─────────────────────────────────────────────────────────
 
 const createPayment = async ({
@@ -440,6 +447,7 @@ module.exports = {
   findOwnerPaymentAccounts,
   findPaymentStatusByName,
   findExistingPaymentForReservation,
+  findPaymentByReservationId,
   createPayment,
   createOwnerPaymentAccount,
   updateOwnerPaymentAccount,

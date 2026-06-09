@@ -101,11 +101,7 @@ router.patch(
   paymentController.uploadReceipt
 );
 
-router.get(
-  "/:id/proof",
-  authMiddleware,
-  paymentController.getPaymentProof
-);
+router.get("/:id/proof", authMiddleware, paymentController.getPaymentProof);
 
 router.get("/:id", authMiddleware, paymentController.getPaymentById);
 

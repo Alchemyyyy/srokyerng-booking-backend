@@ -209,7 +209,6 @@ const findAllReservations = async (filters = {}) => {
 const updateReservationStatus = async (
   id,
   status,
-  cancelledBy = null,
   cancellationReason = null
 ) => {
   const [result] = await pool.query(

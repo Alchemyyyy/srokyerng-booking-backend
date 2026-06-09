@@ -210,18 +210,19 @@ const getOwnerPaymentAccounts = async (ownerId) => {
   return accounts.map(toSafeOwnerPaymentAccount);
 };
 
-const createOwnerPaymentAccount = async (ownerId, {
-  payment_method_id,
-  account_name,
-  account_number,
-  qr_image_url,
-}) => {
+const createOwnerPaymentAccount = async (
+  ownerId,
+  { payment_method_id, account_name, account_number, qr_image_url }
+) => {
   if (!account_name || account_name.trim().length === 0) {
     throwError("Account name is required", 400);
   }
 
   if (!account_number && !qr_image_url) {
-    throwError("At least one payment detail is required: account number or QR image", 400);
+    throwError(
+      "At least one payment detail is required: account number or QR image",
+      400
+    );
   }
 
   const paymentMethod = await paymentModel.findPaymentMethodById(payment_method_id);
@@ -234,10 +235,7 @@ const createOwnerPaymentAccount = async (ownerId, {
     payment_method_id
   );
   if (duplicate) {
-    throwError(
-      "An active payment account already exists for this payment method",
-      409
-    );
+    throwError("An active payment account already exists for this payment method", 409);
   }
 
   const insertId = await paymentModel.createOwnerPaymentAccount({
@@ -273,10 +271,7 @@ const updateOwnerPaymentAccount = async (ownerId, accountId, payload) => {
       payment_method_id
     );
     if (duplicate && duplicate.id !== account.id) {
-      throwError(
-        "An active payment account already exists for this payment method",
-        409
-      );
+      throwError("An active payment account already exists for this payment method", 409);
     }
     updates.payment_method_id = payment_method_id;
   }
@@ -311,10 +306,17 @@ const updateOwnerPaymentAccount = async (ownerId, accountId, payload) => {
   }
 
   if (!finalAccountNumber && !finalQrImageUrl) {
-    throwError("At least one payment detail is required: account number or QR image", 400);
+    throwError(
+      "At least one payment detail is required: account number or QR image",
+      400
+    );
   }
 
-  if (updates.qr_image_url && account.qr_image_url && account.qr_image_url !== updates.qr_image_url) {
+  if (
+    updates.qr_image_url &&
+    account.qr_image_url &&
+    account.qr_image_url !== updates.qr_image_url
+  ) {
     const oldPath = path.join(process.cwd(), account.qr_image_url.replace(/^\//, ""));
     if (fs.existsSync(oldPath)) {
       fs.unlinkSync(oldPath);
@@ -342,10 +344,7 @@ const activateOwnerPaymentAccount = async (ownerId, accountId) => {
     account.payment_method_id
   );
   if (duplicate && duplicate.id !== account.id) {
-    throwError(
-      "An active payment account already exists for this payment method",
-      409
-    );
+    throwError("An active payment account already exists for this payment method", 409);
   }
 
   await paymentModel.setOwnerPaymentAccountActive(accountId, true);
@@ -437,11 +436,40 @@ const _ownerTransition = async (ownerId, paymentId, targetStatus, extraFields = 
 
 const verifyPayment = async (ownerId, paymentId) => {
   const now = new Date();
-  return _ownerTransition(ownerId, paymentId, "paid", {
+
+  // Get payment before transition to know the reservation_id
+  const payment = await paymentModel.findPaymentById(paymentId);
+  if (!payment) throwError("Payment not found", 404);
+  if (payment.owner_id !== ownerId) {
+    throwError("You can only manage payments for your own properties", 403);
+  }
+
+  if (!isValidTransition(payment.status_name, "paid")) {
+    throwError(
+      `Cannot transition payment from '${payment.status_name}' to 'paid'`,
+      400
+    );
+  }
+
+  const statusRow = await paymentModel.findPaymentStatusByName("paid");
+  if (!statusRow) throwError("Payment statuses not seeded", 500);
+
+  // Update payment status to paid
+  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
     verified_by: ownerId,
     verified_at: now,
     paid_at: now,
   });
+
+  // Update reservation status to confirmed
+  const reservationModel = require("../reservations/reservation.model");
+  await reservationModel.updateReservationStatus(
+    payment.reservation_id,
+    "confirmed"
+  );
+
+  const updated = await paymentModel.findPaymentById(payment.id);
+  return toSafePayment(updated);
 };
 
 const rejectPayment = async (ownerId, paymentId, rejectionReason) => {
@@ -453,10 +481,38 @@ const rejectPayment = async (ownerId, paymentId, rejectionReason) => {
 };
 
 const refundPayment = async (ownerId, paymentId) => {
-  return _ownerTransition(ownerId, paymentId, "refunded", {
+  // Get payment to check associated reservation
+  const payment = await paymentModel.findPaymentById(paymentId);
+  if (!payment) throwError("Payment not found", 404);
+  if (payment.owner_id !== ownerId) {
+    throwError("You can only manage payments for your own properties", 403);
+  }
+
+  if (!isValidTransition(payment.status_name, "refunded")) {
+    throwError(
+      `Cannot transition payment from '${payment.status_name}' to 'refunded'`,
+      400
+    );
+  }
+
+  // Verify the reservation is cancelled before refunding
+  const reservationModel = require("../reservations/reservation.model");
+  const reservation = await reservationModel.findReservationById(payment.reservation_id);
+  if (!reservation) throwError("Associated reservation not found", 404);
+  if (reservation.reservation_status !== "cancelled") {
+    throwError("Can only refund payments for cancelled reservations", 400);
+  }
+
+  const statusRow = await paymentModel.findPaymentStatusByName("refunded");
+  if (!statusRow) throwError("Payment statuses not seeded", 500);
+
+  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
     verified_by: ownerId,
     verified_at: new Date(),
   });
+
+  const updated = await paymentModel.findPaymentById(payment.id);
+  return toSafePayment(updated);
 };
 
 const getAllPayments = async (filters = {}) => {
@@ -472,6 +528,364 @@ const getPaymentsPendingVerification = async () => {
 const getOwnerPaymentsPendingVerification = async (ownerId) => {
   const rows = await paymentModel.findPaymentsByOwner(ownerId, { status: "submitted" });
   return rows.map(toSafePayment);
+};
+
+// ─── Refund Request Actions ───────────────────────────────────────
+
+const createRefundRequest = async (paymentId, requestedBy, amount, reason) => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const payment = await paymentModel.findPaymentById(paymentId);
+  if (!payment) throwError("Payment not found", 404);
+
+  if (payment.status_name !== "paid") {
+    throwError("Only paid payments can be refunded", 400);
+  }
+
+  const existingRefund =
+    await refundRequestModel.findRefundRequestsByPaymentId(paymentId);
+  if (existingRefund.length > 0) {
+    const pending = existingRefund.find((r) => r.refund_status === "requested");
+    if (pending) {
+      throwError("A refund request already exists for this payment", 409);
+    }
+  }
+
+  if (amount > payment.amount) {
+    throwError("Refund amount cannot exceed payment amount", 400);
+  }
+
+  const insertId = await refundRequestModel.createRefundRequest(
+    paymentId,
+    requestedBy,
+    amount,
+    reason
+  );
+
+  const refundRequest = await refundRequestModel.findRefundRequestById(insertId);
+  return {
+    id: refundRequest.id,
+    payment_id: refundRequest.payment_id,
+    requested_by: refundRequest.requested_by,
+    amount: refundRequest.amount,
+    reason: refundRequest.reason,
+    refund_status: refundRequest.refund_status,
+    requested_at: refundRequest.requested_at,
+  };
+};
+
+const createRefundRequestByReservation = async (reservationId, customerId, amount, reason) => {
+  const refundRequestModel = require("./refund-request.model");
+
+  // Find payment by reservation ID
+  const payment = await paymentModel.findPaymentByReservationId(reservationId);
+  if (!payment) throwError("No payment found for this reservation", 404);
+
+  // Verify customer owns this reservation/payment
+  if (payment.customer_id !== customerId) {
+    throwError("You can only request refunds for your own reservations", 403);
+  }
+
+  if (payment.status_name !== "paid") {
+    throwError("Only paid payments can be refunded", 400);
+  }
+
+  const existingRefund =
+    await refundRequestModel.findRefundRequestsByPaymentId(payment.id);
+  if (existingRefund.length > 0) {
+    const pending = existingRefund.find((r) => r.refund_status === "requested");
+    if (pending) {
+      throwError("A refund request already exists for this payment", 409);
+    }
+  }
+
+  if (amount > payment.amount) {
+    throwError("Refund amount cannot exceed payment amount", 400);
+  }
+
+  const insertId = await refundRequestModel.createRefundRequest(
+    payment.id,
+    customerId,
+    amount,
+    reason
+  );
+
+  const refundRequest = await refundRequestModel.findRefundRequestById(insertId);
+  return {
+    id: refundRequest.id,
+    payment_id: refundRequest.payment_id,
+    requested_by: refundRequest.requested_by,
+    amount: refundRequest.amount,
+    reason: refundRequest.reason,
+    refund_status: refundRequest.refund_status,
+    requested_at: refundRequest.requested_at,
+  };
+};
+
+const getRefundRequest = async (refundRequestId) => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
+  if (!refundRequest) throwError("Refund request not found", 404);
+
+  return {
+    id: refundRequest.id,
+    payment_id: refundRequest.payment_id,
+    requested_by: refundRequest.requested_by,
+    handled_by: refundRequest.handled_by,
+    amount: refundRequest.amount,
+    reason: refundRequest.reason,
+    refund_status: refundRequest.refund_status,
+    decision_note: refundRequest.decision_note,
+    requested_at: refundRequest.requested_at,
+    handled_at: refundRequest.handled_at,
+  };
+};
+
+const getMyRefundRequests = async (userId, limit = 50) => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequests = await refundRequestModel.findRefundRequestsByUserId(
+    userId,
+    limit
+  );
+
+  return refundRequests.map((r) => ({
+    id: r.id,
+    payment_id: r.payment_id,
+    amount: r.amount,
+    reason: r.reason,
+    refund_status: r.refund_status,
+    requested_at: r.requested_at,
+    handled_at: r.handled_at,
+  }));
+};
+
+const getPendingRefundRequests = async (limit = 50) => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequests = await refundRequestModel.findPendingRefundRequests(limit);
+
+  return refundRequests.map((r) => ({
+    id: r.id,
+    payment_id: r.payment_id,
+    requested_by: r.requested_by,
+    amount: r.amount,
+    reason: r.reason,
+    refund_status: r.refund_status,
+    requested_at: r.requested_at,
+  }));
+};
+
+const approveRefundRequest = async (adminId, refundRequestId, decisionNote = "") => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
+  if (!refundRequest) throwError("Refund request not found", 404);
+
+  if (refundRequest.refund_status !== "requested") {
+    throwError("Only pending refund requests can be approved", 400);
+  }
+
+  // Update refund request status
+  await refundRequestModel.updateRefundRequestStatus(
+    refundRequestId,
+    "approved",
+    adminId,
+    decisionNote
+  );
+
+  // Process the actual refund by updating payment status
+  const payment = await paymentModel.findPaymentById(refundRequest.payment_id);
+  if (payment.status_name !== "paid") {
+    throwError("Payment is no longer in paid status", 400);
+  }
+
+  // Transition payment to refunded
+  const statusRow = await paymentModel.findPaymentStatusByName("refunded");
+  if (!statusRow) throwError("Payment statuses not seeded", 500);
+
+  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
+    verified_by: adminId,
+    verified_at: new Date(),
+  });
+
+  const updatedRefundRequest =
+    await refundRequestModel.findRefundRequestById(refundRequestId);
+  return {
+    id: updatedRefundRequest.id,
+    payment_id: updatedRefundRequest.payment_id,
+    refund_status: updatedRefundRequest.refund_status,
+    handled_by: updatedRefundRequest.handled_by,
+    handled_at: updatedRefundRequest.handled_at,
+  };
+};
+
+const rejectRefundRequest = async (adminId, refundRequestId, decisionNote = "") => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
+  if (!refundRequest) throwError("Refund request not found", 404);
+
+  if (refundRequest.refund_status !== "requested") {
+    throwError("Only pending refund requests can be rejected", 400);
+  }
+
+  // Update refund request status
+  await refundRequestModel.updateRefundRequestStatus(
+    refundRequestId,
+    "rejected",
+    adminId,
+    decisionNote
+  );
+
+  const updatedRefundRequest =
+    await refundRequestModel.findRefundRequestById(refundRequestId);
+  return {
+    id: updatedRefundRequest.id,
+    payment_id: updatedRefundRequest.payment_id,
+    refund_status: updatedRefundRequest.refund_status,
+    handled_by: updatedRefundRequest.handled_by,
+    handled_at: updatedRefundRequest.handled_at,
+  };
+};
+
+const getOwnerRefundRequests = async (ownerId, limit = 50) => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequests = await refundRequestModel.findRefundRequestsByOwner(
+    ownerId,
+    limit
+  );
+
+  return refundRequests.map((r) => ({
+    id: r.id,
+    payment_id: r.payment_id,
+    payment_amount: r.payment_amount,
+    reservation_id: r.reservation_id,
+    customer_name: r.customer_name,
+    property_name: r.property_name,
+    room_name: r.room_name,
+    check_in_date: r.check_in_date,
+    check_out_date: r.check_out_date,
+    reservation_status: r.reservation_status,
+    amount: r.amount,
+    reason: r.reason,
+    refund_status: r.refund_status,
+    requested_at: r.requested_at,
+    handled_at: r.handled_at,
+  }));
+};
+
+const getOwnerPendingRefundRequests = async (ownerId, limit = 50) => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequests = await refundRequestModel.findPendingRefundRequestsByOwner(
+    ownerId,
+    limit
+  );
+
+  return refundRequests.map((r) => ({
+    id: r.id,
+    payment_id: r.payment_id,
+    payment_amount: r.payment_amount,
+    reservation_id: r.reservation_id,
+    customer_name: r.customer_name,
+    property_name: r.property_name,
+    room_name: r.room_name,
+    check_in_date: r.check_in_date,
+    check_out_date: r.check_out_date,
+    reservation_status: r.reservation_status,
+    amount: r.amount,
+    reason: r.reason,
+    refund_status: r.refund_status,
+    requested_at: r.requested_at,
+  }));
+};
+
+const approveOwnerRefundRequest = async (ownerId, refundRequestId, decisionNote = "") => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
+  if (!refundRequest) throwError("Refund request not found", 404);
+
+  if (refundRequest.refund_status !== "requested") {
+    throwError("Only pending refund requests can be approved", 400);
+  }
+
+  // Verify the refund request belongs to the owner's property
+  const payment = await paymentModel.findPaymentById(refundRequest.payment_id);
+  if (!payment) throwError("Payment not found", 404);
+  if (payment.owner_id !== ownerId) {
+    throwError("You can only manage refund requests for your own properties", 403);
+  }
+
+  if (payment.status_name !== "paid") {
+    throwError("Payment is no longer in paid status", 400);
+  }
+
+  // Update refund request status
+  await refundRequestModel.updateRefundRequestStatus(
+    refundRequestId,
+    "approved",
+    ownerId,
+    decisionNote
+  );
+
+  // Transition payment to refunded
+  const statusRow = await paymentModel.findPaymentStatusByName("refunded");
+  if (!statusRow) throwError("Payment statuses not seeded", 500);
+
+  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
+    verified_by: ownerId,
+    verified_at: new Date(),
+  });
+
+  const updatedRefundRequest =
+    await refundRequestModel.findRefundRequestById(refundRequestId);
+  return {
+    id: updatedRefundRequest.id,
+    payment_id: updatedRefundRequest.payment_id,
+    refund_status: updatedRefundRequest.refund_status,
+    handled_by: updatedRefundRequest.handled_by,
+    handled_at: updatedRefundRequest.handled_at,
+  };
+};
+
+const rejectOwnerRefundRequest = async (ownerId, refundRequestId, decisionNote = "") => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
+  if (!refundRequest) throwError("Refund request not found", 404);
+
+  if (refundRequest.refund_status !== "requested") {
+    throwError("Only pending refund requests can be rejected", 400);
+  }
+
+  // Verify the refund request belongs to the owner's property
+  const payment = await paymentModel.findPaymentById(refundRequest.payment_id);
+  if (!payment) throwError("Payment not found", 404);
+  if (payment.owner_id !== ownerId) {
+    throwError("You can only manage refund requests for your own properties", 403);
+  }
+
+  // Update refund request status
+  await refundRequestModel.updateRefundRequestStatus(
+    refundRequestId,
+    "rejected",
+    ownerId,
+    decisionNote
+  );
+
+  const updatedRefundRequest =
+    await refundRequestModel.findRefundRequestById(refundRequestId);
+  return {
+    id: updatedRefundRequest.id,
+    payment_id: updatedRefundRequest.payment_id,
+    refund_status: updatedRefundRequest.refund_status,
+    handled_by: updatedRefundRequest.handled_by,
+    handled_at: updatedRefundRequest.handled_at,
+  };
 };
 
 module.exports = {
@@ -496,4 +910,15 @@ module.exports = {
   getAllPayments,
   getPaymentsPendingVerification,
   getOwnerPaymentsPendingVerification,
+  createRefundRequest,
+  createRefundRequestByReservation,
+  getRefundRequest,
+  getMyRefundRequests,
+  getPendingRefundRequests,
+  approveRefundRequest,
+  rejectRefundRequest,
+  getOwnerRefundRequests,
+  getOwnerPendingRefundRequests,
+  approveOwnerRefundRequest,
+  rejectOwnerRefundRequest,
 };

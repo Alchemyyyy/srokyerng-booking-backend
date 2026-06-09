@@ -5,6 +5,7 @@ const reviewController = require("../reviews/review.controller");
 const authMiddleware = require("../../middleware/auth.middleware");
 const roleMiddleware = require("../../middleware/role.middleware");
 const ROLES = require("../../constants/roles");
+const paymentController = require("../payments/payment.controller");
 
 const router = express.Router();
 
@@ -24,10 +25,23 @@ router.get(
   reservationController.getMyReservations
 );
 router.get("/:id", reservationController.getReservationById);
+router.get("/:id/cancellation-policy", reservationController.getCancellationPolicy);
 router.patch(
   "/:id/cancel",
   roleMiddleware(ROLES.CUSTOMER),
   reservationController.cancelReservation
+);
+router.post(
+  "/:id/refund-request",
+  roleMiddleware(ROLES.CUSTOMER),
+  reservationController.requestRefundByReservation
+);
+
+router.get(
+  "/refund-requests/my",
+  authMiddleware,
+  roleMiddleware(ROLES.CUSTOMER),
+  paymentController.getMyRefundRequests
 );
 
 module.exports = router;

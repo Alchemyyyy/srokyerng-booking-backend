@@ -5,6 +5,7 @@ const roleMiddleware = require("../../middleware/role.middleware");
 const ROLES = require("../../constants/roles");
 const paymentController = require("../payments/payment.controller");
 const upload = require("../../middleware/upload.middleware");
+const analyticsController = require("./analytics.controller");
 
 const paymentAccountQrUpload = upload.createImageUpload({
   folder: "payment-account-qrs",
@@ -46,15 +47,34 @@ router.patch(
   "/payment-accounts/:id/deactivate",
   paymentController.deactivateOwnerPaymentAccount
 );
-router.delete(
-  "/payment-accounts/:id",
-  paymentController.deleteOwnerPaymentAccount
-);
+router.delete("/payment-accounts/:id", paymentController.deleteOwnerPaymentAccount);
 router.patch(
   "/payment-accounts/:id/activate",
   paymentController.activateOwnerPaymentAccount
 );
 
+// Refund request endpoints
+router.get("/refund-requests", paymentController.getOwnerRefundRequests);
+router.get(
+  "/refund-requests/pending",
+  paymentController.getOwnerPendingRefundRequests
+);
+router.patch(
+  "/refund-requests/:id/approve",
+  paymentController.approveOwnerRefundRequest
+);
+router.patch(
+  "/refund-requests/:id/reject",
+  paymentController.rejectOwnerRefundRequest
+);
+
 router.get("/reviews", ownerController.getReviews);
+
+// Analytics endpoints
+router.get("/analytics/summary", analyticsController.getSummary);
+router.get("/analytics/reservations", analyticsController.getReservations);
+router.get("/analytics/revenue", analyticsController.getRevenue);
+router.get("/analytics/properties", analyticsController.getProperties);
+router.get("/analytics/rooms", analyticsController.getRooms);
 
 module.exports = router;
