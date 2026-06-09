@@ -99,6 +99,15 @@ router.get(
   propertyController.getPropertyRooms
 );
 
+router.get(
+  "/:propertyId/rooms/:roomId",
+  authMiddleware,
+  roleMiddleware(role.OWNER),
+  propertyController.getRoomDetailByProperty
+);
+
 router.get("/:propertyId/availability", propertyController.checkPropertyAvailability);
+
+router.get("/:propertyId/availability-calendar", propertyController.getPropertyCalendar);
 
 module.exports = router;

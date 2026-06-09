@@ -76,5 +76,11 @@ router.get("/analytics/reservations", analyticsController.getReservations);
 router.get("/analytics/revenue", analyticsController.getRevenue);
 router.get("/analytics/properties", analyticsController.getProperties);
 router.get("/analytics/rooms", analyticsController.getRooms);
+router.get(
+  "/properties/:propertyId/availability-calendar",
+  ownerController.getOwnerPropertyCalendar
+);
+
+router.get("/rooms/:roomId/availability-calendar", ownerController.getOwnerRoomCalendar);
 
 module.exports = router;

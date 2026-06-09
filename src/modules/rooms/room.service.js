@@ -590,6 +590,26 @@ const checkPropertyAvailability = async (propertyId, query) => {
   };
 };
 
+const getRoomDetailByProperty = async (propertyId, roomId) => {
+  const roomRow = await room.getRoomDetailByProperty(propertyId, roomId);
+
+  if (!roomRow) {
+    return {
+      result: false,
+      message: "Room not found",
+      status: 404,
+    };
+  }
+
+  room.images = await room.getRoomImages(roomId);
+
+  return {
+    result: true,
+    message: "Room detail fetched successfully",
+    status: 200,
+    data: roomRow,
+  };
+};
 module.exports = {
   getPropertyRooms,
   getRoomDetail,
@@ -605,4 +625,5 @@ module.exports = {
   sortRoomImages,
   checkRoomAvailability,
   checkPropertyAvailability,
+  getRoomDetailByProperty,
 };

@@ -65,4 +65,6 @@ router.patch(
 
 router.get("/:roomId/availability", roomController.checkRoomAvailability);
 
+router.get("/:roomId/availability-calendar", roomController.getRoomCalendar);
+
 module.exports = router;

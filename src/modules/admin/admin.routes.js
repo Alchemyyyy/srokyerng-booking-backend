@@ -19,6 +19,20 @@ router.patch("/reservations/:id/status", reservationController.updateReservation
 router.get("/properties", adminController.getAll);
 router.patch("/properties/:id/status", adminController.updateStatusProperty);
 router.get("/reviews", reviewController.getAllReviews);
+router.get("/properties/:propertyId", adminController.getPropertyDetailForAdmin);
+router.get("/property-update-requests", adminController.getPropertyUpdateRequests);
+router.get(
+  "/property-update-requests/:requestId",
+  adminController.getPropertyUpdateRequestDetail
+);
+router.patch(
+  "/property-update-requests/:requestId/approve",
+  adminController.approvePropertyUpdateRequest
+);
+router.patch(
+  "/property-update-requests/:requestId/reject",
+  adminController.rejectPropertyUpdateRequest
+);
 
 router.get(
   "/payments/pending-verification",
@@ -43,5 +57,9 @@ router.get("/analytics/reservations", analyticsController.getReservations);
 router.get("/analytics/payments", analyticsController.getPayments);
 router.get("/analytics/reviews", analyticsController.getReviews);
 router.get("/analytics/activity", analyticsController.getActivity);
+router.get("/reports", adminController.getAllReports);
+router.get("/reports/:id", adminController.getReportByIdAdmin);
+router.patch("/reports/:id/status", adminController.updateStatus);
+router.patch("/reports/:id/resolve", adminController.resolveReport);
 
 module.exports = router;

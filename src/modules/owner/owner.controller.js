@@ -1,6 +1,7 @@
 const reservationService = require("../reservations/reservation.service");
 const { successResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
+const calendarService = require("../calendar/calendar.service");
 
 /**
  * Get owner dashboard data
@@ -52,7 +53,7 @@ const getProperties = asyncHandler(async (req, res) => {
  */
 const getReservations = asyncHandler(async (req, res) => {
   // console.log(req.user.id);
-  
+
   const { status, property_id } = req.query;
   const filters = {};
 
@@ -75,7 +76,6 @@ const getReservations = asyncHandler(async (req, res) => {
  * @access Owner only
  */
 const getPayments = asyncHandler(async (req, res) => {
-  
   // Import payment service (when implemented)
   return successResponse(res, "Owner payments endpoint ready", {
     message: "Connect to paymentService.getOwnerPayments()",
@@ -96,10 +96,55 @@ const getReviews = asyncHandler(async (req, res) => {
   });
 });
 
+const getPropertyCalendar = asyncHandler(async (req, res) => {
+  const result = await calendarService.getPropertyCalendar(
+    req.params.propertyId,
+    req.query.start_date,
+    req.query.end_date
+  );
+
+  return res.status(result.status).json(result);
+});
+
+const getRoomCalendar = asyncHandler(async (req, res) => {
+  const result = await calendarService.getRoomCalendar(
+    req.params.roomId,
+    req.query.start_date,
+    req.query.end_date
+  );
+
+  return res.status(result.status).json(result);
+});
+
+const getOwnerPropertyCalendar = asyncHandler(async (req, res) => {
+  const result = await calendarService.getOwnerPropertyCalendar(
+    req.params.propertyId,
+    req.user.id,
+    req.query.start_date,
+    req.query.end_date
+  );
+
+  return res.status(result.status).json(result);
+});
+
+const getOwnerRoomCalendar = asyncHandler(async (req, res) => {
+  const result = await service.getOwnerRoomCalendar(
+    req.params.roomId,
+    req.user.id,
+    req.query.start_date,
+    req.query.end_date
+  );
+
+  return res.status(result.status).json(result);
+});
+
 module.exports = {
   getDashboard,
   getProperties,
   getReservations,
   getPayments,
   getReviews,
+
+  getOwnerPropertyCalendar,
+  getOwnerRoomCalendar,
 };

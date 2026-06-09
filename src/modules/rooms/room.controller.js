@@ -3,6 +3,7 @@ const asyncHandler = require("../../utils/asyncHandler");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
 const room = require("./room.service");
+const calendar = require("../calendar/calendar.service");
 
 const getRoomDetail = asyncHandler(async (req, res) => {
   let result = await room.getRoomDetail(req.params.id);
@@ -104,6 +105,16 @@ const checkRoomAvailability = asyncHandler(async (req, res) => {
   return successResponse(res, result.message, result.data, result.status);
 });
 
+const getRoomCalendar = asyncHandler(async (req, res) => {
+  const result = await calendar.getRoomCalendar(
+    req.params.roomId,
+    req.query.start_date,
+    req.query.end_date
+  );
+
+  return res.status(result.status).json(result);
+});
+
 module.exports = {
   getRoomDetail,
   updateRoom,
@@ -115,4 +126,5 @@ module.exports = {
   setRoomCoverImage,
   sortRoomImages,
   checkRoomAvailability,
+  getRoomCalendar,
 };

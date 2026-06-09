@@ -524,3 +524,50 @@ Success Response:
   ]
 }
 ```
+
+## Get property detail(admin)
+
+```text
+GET /api/admin/properties/:propertyId
+```
+
+Authorization: required
+
+success response:
+
+```json
+{
+  "success": true,
+  "message": "Property detail fetched successfully",
+  "data": {
+    "id": 13,
+    "owner_id": 18,
+    "category_id": 1,
+    "status_id": 1,
+    "property_name": "property100",
+    "slug": null,
+    "description": "A luxurious beachfront resort with infinity pool, spa, and fine dining. Perfect for family vacations and romantic getaways.",
+    "address": "Street 123, Sangkat 4, Group 5",
+    "city": "Sihanoukville",
+    "province": "Phnom Penh",
+    "country": "Cambodia",
+    "latitude": "10.63456780",
+    "longitude": "103.49723450",
+    "contact_phone": "+855 12 345 678",
+    "contact_email": "reservations@sunsetbeach.com",
+    "rejection_reason": null,
+    "approved_by": null,
+    "approved_at": null,
+    "created_at": "2026-06-05T07:47:43.000Z",
+    "updated_at": "2026-06-05T07:47:43.000Z",
+    "deleted_at": null,
+    "category_name": "Hotel",
+    "status_name": "pending",
+    "owner_name": "User17",
+    "owner_email": "menghour42220+2@gmail.com",
+    "owner_phone": "0123659870",
+    "images": [],
+    "amenities": []
+  }
+}
+```
