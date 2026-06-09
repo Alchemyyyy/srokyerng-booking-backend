@@ -1,4 +1,5 @@
 const db = require("../../config/db");
+const AppError = require("../../utils/appError");
 
 const getRoomById = async (roomId) => {
 
@@ -21,28 +22,37 @@ const insertReview = async (
     rating,
     comment
 ) => {
+    try {
+        const [result] = await db.query(
+            `
+            INSERT INTO reviews (
+                reservation_id,
+                property_id,
+                customer_id,
+                rating,
+                comment
+            )
+            VALUES (?, ?, ?, ?, ?)
+            `,
+            [
+                reservationId,
+                propertyId,
+                userId,
+                rating,
+                comment
+            ]
+        );
 
-    const [result] = await db.query(
-        `
-        INSERT INTO reviews (
-            reservation_id,
-            property_id,
-            customer_id,
-            rating,
-            comment
-        )
-        VALUES (?, ?, ?, ?, ?)
-        `,
-        [
-            reservationId,
-            propertyId,
-            userId,
-            rating,
-            comment
-        ]
-    );
-
-    return result.insertId;
+        return result.insertId;
+    } catch (error) {
+        if (error.code === "ER_DUP_ENTRY") {
+            throw new AppError(
+                "Review already exists for this reservation",
+                400
+            );
+        }
+        throw error;
+    }
 };
 
 const getReviewById = async (reviewId) => {

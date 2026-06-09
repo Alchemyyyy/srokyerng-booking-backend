@@ -14,8 +14,7 @@ router.use(authMiddleware);
 // Customer routes
 router.post("/", roleMiddleware(ROLES.CUSTOMER), reservationController.createReservation);
 router.post(
-  "/:reservationId/reviews",
-  roleMiddleware(ROLES.CUSTOMER),
+  "/:reservationId/reviews",roleMiddleware(ROLES.CUSTOMER),
   reviewController.createReview
 );
 router.get(

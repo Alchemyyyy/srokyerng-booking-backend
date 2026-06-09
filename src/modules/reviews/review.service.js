@@ -1,4 +1,5 @@
 const reviewModel = require("./review.model");
+const AppError = require("../../utils/appError");
 
 const ROLES = require("../../constants/roles");
 
@@ -7,89 +8,62 @@ const createReview = async (
     reservationId,
     body
 ) => {
-
     const { rating, comment } = body;
 
-    // 1. Find reservation
-    const reservation =
-        await reviewModel.getReservationById(
-            reservationId
-        );
+    // 1. Reservation must exist
+    const reservation = await reviewModel.getReservationById(reservationId);
 
     if (!reservation) {
-        throw new Error(
-            "Reservation not found"
-        );
+        throw new AppError("Reservation not found", 404);
     }
 
-    // 2. Ownership check
-    if (reservation.customer_id !== userId) {
-        throw new Error("Forbidden");
+    // 2. Reservation must belong to this user
+    if (Number(reservation.customer_id) !== Number(userId)) {
+        throw new AppError("You are not allowed to review this reservation", 403);
     }
 
-    // 3. Completed check
-    if (
-        reservation.reservation_status !==
-        "completed"
-    ) {
-        throw new Error(
-            "Reservation must be completed before review"
-        );
+    // 3. Reservation must be completed before reviewing
+    if (reservation.status !== "completed") {
+        throw new AppError("You can only review completed reservations", 400);
     }
 
-    // 4. Duplicate review check
-    const existingReview =
-        await reviewModel.getReviewByReservationId(
-            reservationId
-        );
+    // 4. No duplicate review for the same reservation
+    const existingReview = await reviewModel.getReviewByReservationId(reservationId);
 
     if (existingReview) {
-        throw new Error(
-            "Review already exists for this reservation"
-        );
+        throw new AppError("You have already reviewed this reservation", 400);
     }
 
-    // 5. Find room
-    const room =
-        await reviewModel.getRoomById(
-            reservation.room_id
-        );
+    // 5. Get the room to find the property_id
+    const room = await reviewModel.getRoomById(reservation.room_id);
 
-    // 6. Insert review
-    const insertId =
-        await reviewModel.insertReview(
-            reservation.id,
-            room.property_id,
-            userId,
-            rating,
-            comment
-        );
+    if (!room) {
+        throw new AppError("Room not found", 404);
+    }
 
-    // 7. Return inserted review
-    return await reviewModel.getReviewById(
-        insertId
+    // 6. Insert the review
+    const reviewId = await reviewModel.insertReview(
+        reservationId,
+        room.property_id,
+        userId,
+        rating,
+        comment
     );
 
+    // 7. Return the newly created review
+    return await reviewModel.getReviewById(reviewId);
 };
 
 const getPropertyReviews = async (
     propertyId
 ) => {
-
-    return await reviewModel.getPropertyReviews(
-        propertyId
-    );
-
+    return await reviewModel.getPropertyReviews(propertyId);
 };
 
 const getMyReviews = async (
     userId
 ) => {
-
-    return await reviewModel.getMyReviews(
-        userId
-    );
-
+    return await reviewModel.getMyReviews(userId);
 };
 
 const updateReview = async (
@@ -97,70 +71,44 @@ const updateReview = async (
     reviewId,
     body
 ) => {
-
-    const review =
-        await reviewModel.getReviewById(
-            reviewId
-        );
+    const review = await reviewModel.getReviewById(reviewId);
 
     if (!review) {
-        throw new Error(
-            "Review not found"
-        );
+        throw new AppError("Review not found", 404);
     }
 
     // ownership check
-    if (review.customer_id !== userId) {
-        throw new Error("Forbidden");
+    if (Number(review.customer_id) !== Number(userId)) {
+        throw new AppError("Forbidden", 403);
     }
 
-    await reviewModel.updateReview(
-        reviewId,
-        body
-    );
+    await reviewModel.updateReview(reviewId, body);
 
-    return await reviewModel.getReviewById(
-        reviewId
-    );
-
+    return await reviewModel.getReviewById(reviewId);
 };
 
 const deleteReview = async (
     reviewId,
     user
 ) => {
-
-    const review =
-        await reviewModel.getReviewById(
-            reviewId
-        );
+    const review = await reviewModel.getReviewById(reviewId);
 
     if (!review) {
-        throw new Error(
-            "Review not found"
-        );
+        throw new AppError("Review not found", 404);
     }
 
-    const isOwner =
-        review.customer_id === user.id;
-
-    const isAdmin =
-        user.role === ROLES.ADMIN;
+    const isOwner = Number(review.customer_id) === Number(user.id);
+    const isAdmin = user.role === ROLES.ADMIN;
 
     if (!isOwner && !isAdmin) {
-        throw new Error("Forbidden");
+        throw new AppError("Forbidden", 403);
     }
 
-    await reviewModel.deleteReview(
-        reviewId
-    );
-
+    await reviewModel.deleteReview(reviewId);
 };
 
 const getAllReviews = async () => {
-
     return await reviewModel.getAllReviews();
-
 };
 
 module.exports = {

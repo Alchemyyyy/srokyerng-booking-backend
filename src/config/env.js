@@ -27,8 +27,11 @@ const env = {
   JWT_SECRET: getRequired("JWT_SECRET"),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "15m",
   REFRESH_TOKEN_EXPIRES_DAYS: parseNumber(process.env.REFRESH_TOKEN_EXPIRES_DAYS, 30),
-  REFRESH_TOKEN_COOKIE_SECURE: process.env.REFRESH_TOKEN_COOKIE_SECURE === "true",
-  REFRESH_TOKEN_COOKIE_SAME_SITE: process.env.REFRESH_TOKEN_COOKIE_SAME_SITE || "lax",
+  REFRESH_TOKEN_COOKIE_SECURE:
+    process.env.REFRESH_TOKEN_COOKIE_SECURE === "true" || process.env.NODE_ENV === "production",
+  REFRESH_TOKEN_COOKIE_SAME_SITE:
+    process.env.REFRESH_TOKEN_COOKIE_SAME_SITE ||
+    (process.env.NODE_ENV === "production" ? "None" : "lax"),
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
   SMTP_HOST: process.env.SMTP_HOST || "",
   SMTP_PORT: parseNumber(process.env.SMTP_PORT, 587),
