@@ -150,6 +150,19 @@ const getMyRooms = asyncHandler(async (req, res) => {
   return successResponse(res, result.message, result.data, result.status);
 });
 
+const getRoomDetailByProperty = asyncHandler(async (req, res) => {
+  const result = await room.getRoomDetailByProperty(
+    req.params.propertyId,
+    req.params.roomId
+  );
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
 const checkPropertyAvailability = asyncHandler(async (req, res) => {
   let result = await room.checkPropertyAvailability(req.params.propertyId, req.query);
 
@@ -188,4 +201,5 @@ module.exports = {
   getMyRooms,
   checkPropertyAvailability,
   getPropertyCalendar,
+  getRoomDetailByProperty,
 };

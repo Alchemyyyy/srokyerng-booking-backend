@@ -308,6 +308,44 @@ const getAvailableRoomsByProperty = async (propertyId, guests) => {
   return rows;
 };
 
+const getRoomDetailByProperty = async (propertyId, roomId) => {
+  const sql = `
+    SELECT
+      r.*,
+      rt.type_name,
+
+      p.property_name,
+
+      (
+        SELECT image_url
+        FROM room_images
+        WHERE room_id = r.id
+          AND is_cover = TRUE
+        LIMIT 1
+      ) AS cover_image
+
+    FROM rooms r
+
+    INNER JOIN properties p
+      ON r.property_id = p.id
+
+    INNER JOIN room_types rt
+      ON r.room_type_id = rt.id
+
+    WHERE r.id = ?
+      AND r.property_id = ?
+      AND r.deleted_at IS NULL
+      AND p.deleted_at IS NULL
+      AND p.status_id = 2
+
+    LIMIT 1
+  `;
+
+  const [rows] = await pool.query(sql, [roomId, propertyId]);
+
+  return rows[0] || null;
+};
+
 module.exports = {
   getApprovedPropertyById,
   getRoomsByPropertyId,
@@ -327,4 +365,5 @@ module.exports = {
   updateRoomImageSortOrder,
   getBookedRoomCount,
   getAvailableRoomsByProperty,
+  getRoomDetailByProperty,
 };

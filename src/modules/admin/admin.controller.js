@@ -81,6 +81,65 @@ const getReportByIdAdmin = asyncHandler(async (req, res) => {
   return successResponse(res, result.message, result.data, result.status);
 });
 
+const getPropertyDetailForAdmin = asyncHandler(async (req, res) => {
+  const result = await propertyService.getPropertyDetailForAdmin(req.params.propertyId);
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const getPropertyUpdateRequests = asyncHandler(async (req, res) => {
+  const result = await propertyService.getPropertyUpdateRequests();
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const getPropertyUpdateRequestDetail = asyncHandler(async (req, res) => {
+  const result = await propertyService.getPropertyUpdateRequestDetail(
+    req.params.requestId
+  );
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status);
+  }
+
+  return successResponse(res, result.message, result.data, result.status);
+});
+
+const approvePropertyUpdateRequest = asyncHandler(async (req, res) => {
+  const result = await propertyService.approvePropertyUpdateRequest(
+    req.params.requestId,
+    req.user.id
+  );
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status);
+  }
+
+  return successResponse(res, result.message, null, result.status);
+});
+
+const rejectPropertyUpdateRequest = asyncHandler(async (req, res) => {
+  const result = await propertyService.rejectPropertyUpdateRequest(
+    req.params.requestId,
+    req.user.id,
+    req.body.rejection_reason
+  );
+
+  if (!result.result) {
+    return errorResponse(res, result.message, result.status);
+  }
+
+  return successResponse(res, result.message, null, result.status);
+});
+
 module.exports = {
   getAllReservations,
   updateReservationStatus,
@@ -90,4 +149,9 @@ module.exports = {
   updateStatus,
   resolveReport,
   getReportByIdAdmin,
+  getPropertyDetailForAdmin,
+  getPropertyUpdateRequests,
+  getPropertyUpdateRequestDetail,
+  approvePropertyUpdateRequest,
+  rejectPropertyUpdateRequest,
 };

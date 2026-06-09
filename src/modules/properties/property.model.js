@@ -585,6 +585,140 @@ const updateImageSortOrder = async (imageId, sortOrder) => {
   );
 };
 
+const getPropertyDetailForAdmin = async (propertyId) => {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      p.*,
+
+      c.category_name,
+
+      ps.status_name,
+
+      u.id AS owner_id,
+      u.full_name AS owner_name,
+      u.email AS owner_email,
+      u.phone AS owner_phone
+
+    FROM properties p
+
+    JOIN categories c
+      ON p.category_id = c.id
+
+    JOIN property_statuses ps
+      ON p.status_id = ps.id
+
+    JOIN users u
+      ON p.owner_id = u.id
+
+    WHERE p.id = ?
+    `,
+    [propertyId]
+  );
+
+  return rows[0];
+};
+
+const getAllUpdateRequests = async () => {
+  const [rows] = await pool.query(`
+    SELECT
+      pur.*,
+      p.property_name,
+      u.full_name owner_name
+    FROM property_update_requests pur
+    JOIN properties p
+      ON pur.property_id = p.id
+    JOIN users u
+      ON pur.owner_id = u.id
+    ORDER BY pur.created_at DESC
+  `);
+
+  return rows;
+};
+
+const createUpdateRequest = async (propertyId, ownerId, updateData) => {
+  const [rows] = await pool.query(
+    `
+    INSERT INTO property_update_requests
+    (
+      property_id,
+      owner_id,
+      update_data
+    )
+    VALUES (?, ?, ?)
+    `,
+    [propertyId, ownerId, updateData]
+  );
+
+  return rows;
+};
+
+const getPendingRequests = async () => {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      pur.*,
+      p.property_name,
+      u.full_name
+    FROM property_update_requests pur
+
+    JOIN properties p
+      ON pur.property_id = p.id
+
+    JOIN users u
+      ON pur.owner_id = u.id
+
+    WHERE pur.status = 'pending'
+
+    ORDER BY pur.created_at DESC
+    `
+  );
+
+  return rows;
+};
+
+const getUpdateRequestById = async (id) => {
+  const [rows] = await pool.query(
+    `
+    SELECT *
+    FROM property_update_requests
+    WHERE id = ?
+    `,
+    [id]
+  );
+
+  return rows[0];
+};
+
+const approveUpdateRequest = async (requestId, adminId) => {
+  await pool.query(
+    `
+    UPDATE property_update_requests
+    SET
+      status='approved',
+      reviewed_by = ?,
+      reviewed_at = NOW()
+    WHERE id=?
+    `,
+    [adminId, requestId]
+  );
+};
+
+const rejectUpdateRequest = async (requestId, adminId, reason) => {
+  await pool.query(
+    `
+    UPDATE property_update_requests
+    SET
+      status='rejected',
+      rejection_reason=?,
+      reviewed_by = ?,
+      reviewed_at = NOW()
+    WHERE id=?
+    `,
+    [reason, adminId, requestId]
+  );
+};
+
 module.exports = {
   getAllApproved,
   getAll,
@@ -608,4 +742,13 @@ module.exports = {
   resetCoverImages,
   setCoverImage,
   updateImageSortOrder,
+  getPropertyDetailForAdmin,
+  createUpdateRequest,
+  getPendingRequests,
+  getUpdateRequestById,
+  getAllUpdateRequests,
+  createUpdateRequest,
+  getPendingRequests,
+  approveUpdateRequest,
+  rejectUpdateRequest,
 };

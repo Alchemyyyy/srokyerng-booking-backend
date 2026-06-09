@@ -251,25 +251,47 @@ const update = async (property_id, owner_id, body) => {
   }
 
   // allow update only when pending
-  if (checkRow[0].status_id != 1) {
+  // if (checkRow[0].status_id != 1) {
+  //   return {
+  //     result: false,
+  //     message: "Cannot update because status is not pending",
+  //     status: 403,
+  //   };
+  // }
+
+  // update property
+  // await property.update(property_id, owner_id, value);
+
+  // get updated property
+  // let row = await property.getById(property_id);
+
+  //
+  if (checkRow[0].status_id == 1) {
+    await property.update(property_id, owner_id, value);
+
+    const row = await property.getById(property_id);
+
     return {
-      result: false,
-      message: "Cannot update because status is not pending",
-      status: 403,
+      result: true,
+      message: "Property updated successfully",
+      status: 200,
+      data: row[0],
     };
   }
 
-  // update property
-  await property.update(property_id, owner_id, value);
+  if (checkRow[0].status_id == 2) {
+    await property.createUpdateRequest(property_id, owner_id, JSON.stringify(value));
 
-  // get updated property
-  let row = await property.getById(property_id);
-
+    return {
+      result: true,
+      message: "Update request submitted for admin review",
+      status: 200,
+    };
+  }
   return {
-    result: true,
-    message: "Updated successfully",
-    status: 200,
-    data: row[0],
+    result: false,
+    message: "Property cannot be updated",
+    status: 403,
   };
 };
 
@@ -513,6 +535,96 @@ const sortPropertyImages = async (propertyId, images, ownerId) => {
   };
 };
 
+const getPropertyDetailForAdmin = async (propertyId) => {
+  const propertyRow = await property.getPropertyDetailForAdmin(propertyId);
+
+  if (!propertyRow) {
+    return {
+      result: false,
+      status: 404,
+      message: "Property not found",
+    };
+  }
+
+  const images = await property.getImages(propertyId);
+
+  const amenities = await property.getAmenities(propertyId);
+
+  propertyRow.images = images;
+  propertyRow.amenities = amenities;
+
+  return {
+    result: true,
+    status: 200,
+    message: "Property detail fetched successfully",
+    data: propertyRow,
+  };
+};
+const approvePropertyUpdateRequest = async (requestId, adminId) => {
+  const request = await property.getUpdateRequestById(requestId);
+
+  if (!request) {
+    return {
+      result: false,
+      message: "Request not found",
+      status: 404,
+    };
+  }
+
+  // const data = JSON.parse(request.update_data);
+  const data = request.update_data;
+
+  await property.update(request.property_id, request.owner_id, data);
+
+  await property.approveUpdateRequest(requestId, adminId);
+
+  return {
+    result: true,
+    message: "Request approved successfully",
+    status: 200,
+  };
+};
+
+const rejectPropertyUpdateRequest = async (requestId, adminId, reason) => {
+  await property.rejectUpdateRequest(requestId, adminId, reason);
+
+  return {
+    result: true,
+    message: "Request rejected successfully",
+    status: 200,
+  };
+};
+
+const getPropertyUpdateRequests = async () => {
+  const rows = await property.getAllUpdateRequests();
+
+  return {
+    result: true,
+    message: "Update requests fetched successfully",
+    status: 200,
+    data: rows,
+  };
+};
+
+const getPropertyUpdateRequestDetail = async (requestId) => {
+  const row = await property.getUpdateRequestById(requestId);
+
+  if (!row) {
+    return {
+      result: false,
+      message: "Request not found",
+      status: 404,
+    };
+  }
+
+  return {
+    result: true,
+    message: "Request detail fetched successfully",
+    status: 200,
+    data: row,
+  };
+};
+
 module.exports = {
   getAllApproved,
   getAll,
@@ -528,4 +640,9 @@ module.exports = {
   deletePropertyImage,
   setCoverImage,
   sortPropertyImages,
+  getPropertyDetailForAdmin,
+  getPropertyUpdateRequests,
+  getPropertyUpdateRequestDetail,
+  approvePropertyUpdateRequest,
+  rejectPropertyUpdateRequest,
 };

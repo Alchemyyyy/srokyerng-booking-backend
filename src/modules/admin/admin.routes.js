@@ -18,6 +18,20 @@ router.patch("/reservations/:id/status", reservationController.updateReservation
 router.get("/properties", adminController.getAll);
 router.patch("/properties/:id/status", adminController.updateStatusProperty);
 router.get("/reviews", reviewController.getAllReviews);
+router.get("/properties/:propertyId", adminController.getPropertyDetailForAdmin);
+router.get("/property-update-requests", adminController.getPropertyUpdateRequests);
+router.get(
+  "/property-update-requests/:requestId",
+  adminController.getPropertyUpdateRequestDetail
+);
+router.patch(
+  "/property-update-requests/:requestId/approve",
+  adminController.approvePropertyUpdateRequest
+);
+router.patch(
+  "/property-update-requests/:requestId/reject",
+  adminController.rejectPropertyUpdateRequest
+);
 
 router.get(
   "/payments/pending-verification",
