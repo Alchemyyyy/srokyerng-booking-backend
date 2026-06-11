@@ -6,22 +6,31 @@ const asyncHandler = require("../../utils/asyncHandler");
 
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
+const toPositiveInt = (value) => {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : null;
+};
+
 const createReview = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
-  const reservationId = req.params.reservationId;
+  const reservationId = toPositiveInt(req.params.reservationId);
+
+  if (!reservationId) {
+    return errorResponse(res, "Reservation ID must be a positive integer", 400);
+  }
 
   // validation
-  const { error } = createReviewSchema.validate(req.body);
+  const { error, value } = createReviewSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
 
   if (error) {
-    return errorResponse(res, error.details[0].message, null, 400);
+    return errorResponse(res, error.details[0].message, 400);
   }
-  console.log("userId:", userId);
-  console.log("reservationId:", reservationId);
-  console.log("body:", req.body);
 
-  const result = await reviewService.createReview(userId, reservationId, req.body);
+  const result = await reviewService.createReview(userId, reservationId, value);
 
   return successResponse(res, "Review created successfully", result, 201);
 });
@@ -45,21 +54,32 @@ const getMyReviews = asyncHandler(async (req, res) => {
 const updateReview = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
-  const reviewId = req.params.id;
+  const reviewId = toPositiveInt(req.params.id);
 
-  const { error } = updateReviewSchema.validate(req.body);
-
-  if (error) {
-    return errorResponse(res, error.details[0].message, null, 400);
+  if (!reviewId) {
+    return errorResponse(res, "Review ID must be a positive integer", 400);
   }
 
-  const review = await reviewService.updateReview(userId, reviewId, req.body);
+  const { error, value } = updateReviewSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+
+  if (error) {
+    return errorResponse(res, error.details[0].message, 400);
+  }
+
+  const review = await reviewService.updateReview(userId, reviewId, value);
 
   return successResponse(res, "Review updated successfully", review);
 });
 
 const deleteReview = asyncHandler(async (req, res) => {
-  const reviewId = req.params.id;
+  const reviewId = toPositiveInt(req.params.id);
+
+  if (!reviewId) {
+    return errorResponse(res, "Review ID must be a positive integer", 400);
+  }
 
   await reviewService.deleteReview(reviewId, req.user);
 

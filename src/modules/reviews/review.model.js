@@ -59,9 +59,20 @@ const getReviewById = async (reviewId) => {
 
     const [reviews] = await db.query(
         `
-        SELECT *
+        SELECT
+            reviews.*,
+            properties.property_name,
+            rooms.room_name,
+            reservations.check_in_date,
+            reservations.check_out_date
         FROM reviews
-        WHERE id = ?
+        JOIN reservations
+            ON reviews.reservation_id = reservations.id
+        JOIN rooms
+            ON reservations.room_id = rooms.id
+        JOIN properties
+            ON reviews.property_id = properties.id
+        WHERE reviews.id = ?
         `,
         [reviewId]
     );
@@ -94,10 +105,21 @@ const getMyReviews = async (userId) => {
 
     const [reviews] = await db.query(
         `
-        SELECT *
+        SELECT
+            reviews.*,
+            properties.property_name,
+            rooms.room_name,
+            reservations.check_in_date,
+            reservations.check_out_date
         FROM reviews
-        WHERE customer_id = ?
-        ORDER BY created_at DESC
+        JOIN reservations
+            ON reviews.reservation_id = reservations.id
+        JOIN rooms
+            ON reservations.room_id = rooms.id
+        JOIN properties
+            ON reviews.property_id = properties.id
+        WHERE reviews.customer_id = ?
+        ORDER BY reviews.created_at DESC
         `,
         [userId]
     );
@@ -120,6 +142,10 @@ const updateReview = async (
     if (body.comment !== undefined) {
         fields.push("comment = ?");
         values.push(body.comment);
+    }
+
+    if (fields.length === 0) {
+        return;
     }
 
     values.push(reviewId);
@@ -162,10 +188,7 @@ const getAllReviews = async () => {
     return reviews;
 
 };
-const getReservationById = async (
-    reservationId
-) => {
-
+const getReservationById = async (reservationId) => {
     const [reservations] = await db.query(
         `
         SELECT *
@@ -176,7 +199,6 @@ const getReservationById = async (
     );
 
     return reservations[0];
-
 };
 
 const getReviewByReservationId = async (
