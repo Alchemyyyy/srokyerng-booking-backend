@@ -9,12 +9,16 @@ const {
 const {
   validateRegister,
   validateLogin,
+  validateGoogleLogin,
+  validateFacebookLogin,
   validateForgotPassword,
   validateResetPassword,
   validateRefreshToken,
   validateVerifyEmail,
   normalizeRegisterBody,
   normalizeLoginBody,
+  normalizeGoogleLoginBody,
+  normalizeFacebookLoginBody,
   normalizeForgotPasswordBody,
   normalizeResetPasswordBody,
   normalizeVerifyEmailBody,
@@ -78,6 +82,40 @@ const login = asyncHandler(async (req, res) => {
   setRefreshTokenCookie(res, data.refresh_token);
 
   return successResponse(res, "Login successful", {
+    access_token: data.access_token,
+    user: data.user,
+  });
+});
+
+const googleLogin = asyncHandler(async (req, res) => {
+  const payload = normalizeGoogleLoginBody(req.body);
+  const errors = validateGoogleLogin(payload);
+
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  const data = await authService.googleLogin(payload, getRequestMetadata(req));
+  setRefreshTokenCookie(res, data.refresh_token);
+
+  return successResponse(res, "Google login successful", {
+    access_token: data.access_token,
+    user: data.user,
+  });
+});
+
+const facebookLogin = asyncHandler(async (req, res) => {
+  const payload = normalizeFacebookLoginBody(req.body);
+  const errors = validateFacebookLogin(payload);
+
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  const data = await authService.facebookLogin(payload, getRequestMetadata(req));
+  setRefreshTokenCookie(res, data.refresh_token);
+
+  return successResponse(res, "Facebook login successful", {
     access_token: data.access_token,
     user: data.user,
   });
@@ -197,6 +235,8 @@ const revokeSession = asyncHandler(async (req, res) => {
 module.exports = {
   register,
   login,
+  googleLogin,
+  facebookLogin,
   getMe,
   verifyEmail,
   resendVerificationEmail,

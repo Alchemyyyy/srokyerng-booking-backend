@@ -16,6 +16,10 @@ const EMAIL_VERIFICATION_TOKEN_BYTES = 32;
 const EMAIL_VERIFICATION_EXPIRES_MS = 24 * 60 * 60 * 1000;
 const REFRESH_TOKEN_BYTES = 48;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
+const getFacebookGraphUrl = (path) => {
+  return `https://graph.facebook.com/${env.FACEBOOK_GRAPH_API_VERSION}${path}`;
+};
 
 const toSafeUser = (user) => {
   return {
@@ -156,6 +160,176 @@ const login = async ({ email, password }, metadata = {}) => {
     refresh_token: refreshToken,
     user: toSafeUser(user),
   };
+};
+
+const verifyGoogleCredential = async (credential) => {
+  if (!env.GOOGLE_CLIENT_ID) {
+    const error = new Error("Google login is not configured");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const response = await fetch(
+    `${GOOGLE_TOKENINFO_URL}?id_token=${encodeURIComponent(credential)}`
+  );
+
+  if (!response.ok) {
+    const error = new Error("Invalid Google credential");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const profile = await response.json();
+
+  if (profile.aud !== env.GOOGLE_CLIENT_ID) {
+    const error = new Error("Invalid Google credential audience");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  if (profile.email_verified !== "true" && profile.email_verified !== true) {
+    const error = new Error("Google email is not verified");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (!profile.email) {
+    const error = new Error("Google account email is missing");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    email: String(profile.email).toLowerCase(),
+    fullName: profile.name || profile.email,
+    profileImageUrl: profile.picture || null,
+  };
+};
+
+const verifyFacebookAccessToken = async (accessToken) => {
+  if (!env.FACEBOOK_APP_ID || !env.FACEBOOK_APP_SECRET) {
+    const error = new Error("Facebook login is not configured");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const appAccessToken = `${env.FACEBOOK_APP_ID}|${env.FACEBOOK_APP_SECRET}`;
+  const debugUrl = new URL(getFacebookGraphUrl("/debug_token"));
+  debugUrl.searchParams.set("input_token", accessToken);
+  debugUrl.searchParams.set("access_token", appAccessToken);
+
+  const debugResponse = await fetch(debugUrl);
+
+  if (!debugResponse.ok) {
+    const error = new Error("Invalid Facebook access token");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const debugPayload = await debugResponse.json();
+  const tokenData = debugPayload.data;
+
+  if (!tokenData?.is_valid || tokenData.app_id !== env.FACEBOOK_APP_ID || !tokenData.user_id) {
+    const error = new Error("Invalid Facebook access token");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const profileUrl = new URL(getFacebookGraphUrl("/me"));
+  profileUrl.searchParams.set("fields", "id,name,email,picture.type(large)");
+  profileUrl.searchParams.set("access_token", accessToken);
+
+  const profileResponse = await fetch(profileUrl);
+
+  if (!profileResponse.ok) {
+    const error = new Error("Facebook profile could not be fetched");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const profile = await profileResponse.json();
+
+  if (profile.id !== tokenData.user_id) {
+    const error = new Error("Facebook profile does not match token");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  if (!profile.email) {
+    const error = new Error("Facebook account email is missing. Please allow email permission.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    email: String(profile.email).toLowerCase(),
+    fullName: profile.name || profile.email,
+    profileImageUrl: profile.picture?.data?.url || null,
+  };
+};
+
+const socialLogin = async ({ profile, role }, metadata = {}) => {
+  let user = await authModel.findUserByEmail(profile.email);
+
+  if (user && user.role_name !== role) {
+    const error = new Error(`This account is registered as ${user.role_name}`);
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (user && user.status_name !== USER_STATUS.ACTIVE) {
+    const error = new Error("Your account is not active");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (!user) {
+    const selectedRole = await authModel.findRoleByName(role);
+    const activeStatus = await authModel.findStatusByName(USER_STATUS.ACTIVE);
+
+    if (!selectedRole || !activeStatus) {
+      const error = new Error("System roles/statuses are not seeded");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    const passwordHash = await hashPassword(crypto.randomBytes(32).toString("hex"));
+    const userId = await authModel.createVerifiedUser({
+      roleId: selectedRole.id,
+      statusId: activeStatus.id,
+      fullName: profile.fullName,
+      email: profile.email,
+      phone: null,
+      passwordHash,
+      profileImageUrl: profile.profileImageUrl,
+    });
+
+    user = await authModel.findUserById(userId);
+  } else if (!user.email_verified_at) {
+    await authModel.markEmailAsVerified(user.id);
+    user = await authModel.findUserById(user.id);
+  }
+
+  await authModel.updateLastLogin(user.id);
+
+  const accessToken = createAccessToken(user);
+  const refreshToken = await createAndStoreRefreshToken(user.id, metadata);
+
+  return {
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    user: toSafeUser(user),
+  };
+};
+
+const googleLogin = async ({ credential, role }, metadata = {}) => {
+  const googleProfile = await verifyGoogleCredential(credential);
+  return socialLogin({ profile: googleProfile, role }, metadata);
+};
+
+const facebookLogin = async ({ access_token, role }, metadata = {}) => {
+  const facebookProfile = await verifyFacebookAccessToken(access_token);
+  return socialLogin({ profile: facebookProfile, role }, metadata);
 };
 
 const getCurrentUser = async (userId) => {
@@ -354,6 +528,8 @@ const revokeSession = async (userId, sessionId) => {
 module.exports = {
   register,
   login,
+  googleLogin,
+  facebookLogin,
   getCurrentUser,
   verifyEmail,
   resendVerificationEmail,

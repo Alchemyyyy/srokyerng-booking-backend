@@ -21,7 +21,15 @@ const registerSchema = Joi.object({
     "string.empty": "Password is required",
     "string.min": "Password must be at least 8 characters",
   }),
-  phone: Joi.string().trim().allow("", null).optional(),
+  phone: Joi.string()
+    .trim()
+    .pattern(/^[0-9+()\-\s]{7,20}$/)
+    .required()
+    .messages({
+      "any.required": "Phone is required",
+      "string.empty": "Phone is required",
+      "string.pattern.base": "Phone format is invalid",
+    }),
   role: Joi.string()
     .trim()
     .lowercase()
@@ -44,6 +52,40 @@ const loginSchema = Joi.object({
     "any.required": "Password is required",
     "string.empty": "Password is required",
   }),
+});
+
+const googleLoginSchema = Joi.object({
+  credential: Joi.string().trim().required().messages({
+    "any.required": "Google credential is required",
+    "string.empty": "Google credential is required",
+  }),
+  role: Joi.string()
+    .trim()
+    .lowercase()
+    .valid(ROLES.CUSTOMER, ROLES.OWNER)
+    .required()
+    .messages({
+      "any.required": "Role is required",
+      "string.empty": "Role is required",
+      "any.only": "Role must be customer or owner",
+    }),
+});
+
+const facebookLoginSchema = Joi.object({
+  access_token: Joi.string().trim().required().messages({
+    "any.required": "Facebook access token is required",
+    "string.empty": "Facebook access token is required",
+  }),
+  role: Joi.string()
+    .trim()
+    .lowercase()
+    .valid(ROLES.CUSTOMER, ROLES.OWNER)
+    .required()
+    .messages({
+      "any.required": "Role is required",
+      "string.empty": "Role is required",
+      "any.only": "Role must be customer or owner",
+    }),
 });
 
 const forgotPasswordSchema = Joi.object({
@@ -94,6 +136,16 @@ const normalizeLoginBody = (body = {}) => {
   return value;
 };
 
+const normalizeGoogleLoginBody = (body = {}) => {
+  const { value } = googleLoginSchema.validate(body, validationOptions);
+  return value;
+};
+
+const normalizeFacebookLoginBody = (body = {}) => {
+  const { value } = facebookLoginSchema.validate(body, validationOptions);
+  return value;
+};
+
 const normalizeForgotPasswordBody = (body = {}) => {
   const { value } = forgotPasswordSchema.validate(body, validationOptions);
   return value;
@@ -124,6 +176,16 @@ const validateLogin = (body) => {
   return formatErrors(error);
 };
 
+const validateGoogleLogin = (body) => {
+  const { error } = googleLoginSchema.validate(body, validationOptions);
+  return formatErrors(error);
+};
+
+const validateFacebookLogin = (body) => {
+  const { error } = facebookLoginSchema.validate(body, validationOptions);
+  return formatErrors(error);
+};
+
 const validateForgotPassword = (body) => {
   const { error } = forgotPasswordSchema.validate(body, validationOptions);
   return formatErrors(error);
@@ -147,12 +209,16 @@ const validateVerifyEmail = (body) => {
 module.exports = {
   validateRegister,
   validateLogin,
+  validateGoogleLogin,
+  validateFacebookLogin,
   validateForgotPassword,
   validateResetPassword,
   validateRefreshToken,
   validateVerifyEmail,
   normalizeRegisterBody,
   normalizeLoginBody,
+  normalizeGoogleLoginBody,
+  normalizeFacebookLoginBody,
   normalizeForgotPasswordBody,
   normalizeResetPasswordBody,
   normalizeRefreshTokenBody,

@@ -68,6 +68,33 @@ const createUser = async ({ roleId, statusId, fullName, email, phone, passwordHa
   return result.insertId;
 };
 
+const createVerifiedUser = async ({
+  roleId,
+  statusId,
+  fullName,
+  email,
+  phone,
+  passwordHash,
+  profileImageUrl,
+}) => {
+  const [result] = await pool.query(
+    `INSERT INTO users 
+      (role_id, status_id, full_name, email, phone, password_hash, profile_image_url, email_verified_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [
+      roleId,
+      statusId,
+      fullName,
+      email,
+      phone || null,
+      passwordHash,
+      profileImageUrl || null,
+    ]
+  );
+
+  return result.insertId;
+};
+
 const updateLastLogin = async (userId) => {
   await pool.query("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", [
     userId,
@@ -292,6 +319,7 @@ module.exports = {
   findUserByEmail,
   findUserById,
   createUser,
+  createVerifiedUser,
   updateLastLogin,
   markUnusedPasswordResetTokensAsUsed,
   createPasswordResetToken,
