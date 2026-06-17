@@ -53,15 +53,13 @@ const updatePropertyAmenities = async (
 
   }
 
-  // 2. ownership check
-  // if (property.owner_id !== userId) {
-
-  //   throw new AppError(
-  //     "Forbidden",
-  //     403
-  //   );
-
-  // }
+// 2. ownership check
+// if (property.owner_id !== userId) {
+//   throw new AppError(
+//     "Forbidden",
+//     403
+//   );
+// }
 
   // 3. remove duplicates FIRST
   const uniqueAmenityIds =
