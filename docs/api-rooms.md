@@ -185,6 +185,7 @@ body:
 {
   "room_type_id": 1,
   "room_name": "VIP Room",
+  "floor_number": 2,
   "description": "Nice room",
   "price_per_night": 100,
   "max_guests": 2,
@@ -268,24 +269,29 @@ GET /api/properties/:propertyId/rooms/my
 
 Authorization: required
 
+params:
+
+room_type_id,min_price,max_price,search,page,limit
+
 success response:
 
 ```json
 {
   "success": true,
-  "message": "Rooms fetched successfully",
+  "message": "My rooms fetched successfully",
   "data": [
     {
-      "id": 9,
-      "property_id": 12,
+      "id": 1,
+      "property_id": 4,
       "room_type_id": 1,
-      "room_name": "user17 Room",
-      "description": "Nice room",
-      "price_per_night": "50.00",
+      "room_name": "VIP Roompropro4",
+      "floor_number": 3,
+      "description": "NiceVIP room",
+      "price_per_night": "100.00",
       "max_guests": 2,
-      "total_rooms": 5,
-      "created_at": "2026-06-04T09:30:45.000Z",
-      "updated_at": "2026-06-04T09:30:45.000Z",
+      "total_rooms": 2,
+      "created_at": "2026-06-18T08:06:45.000Z",
+      "updated_at": "2026-06-18T08:06:45.000Z",
       "deleted_at": null,
       "type_name": "Standard",
       "cover_image": null
@@ -307,16 +313,17 @@ success response:
   "success": true,
   "message": "Room detail fetched successfully",
   "data": {
-    "id": 9,
-    "property_id": 12,
+    "id": 1,
+    "property_id": 4,
     "room_type_id": 1,
-    "room_name": "user17 Room",
-    "description": "Nice room",
-    "price_per_night": "50.00",
+    "room_name": "VIP Roompropro4",
+    "floor_number": 3,
+    "description": "NiceVIP room",
+    "price_per_night": "100.00",
     "max_guests": 2,
-    "total_rooms": 5,
-    "created_at": "2026-06-04T09:30:45.000Z",
-    "updated_at": "2026-06-04T09:30:45.000Z",
+    "total_rooms": 2,
+    "created_at": "2026-06-18T08:06:45.000Z",
+    "updated_at": "2026-06-18T08:06:45.000Z",
     "deleted_at": null
   }
 }
@@ -404,19 +411,20 @@ success response:
   "success": true,
   "message": "Room detail fetched successfully",
   "data": {
-    "id": 9,
-    "property_id": 12,
+    "id": 1,
+    "property_id": 4,
     "room_type_id": 1,
-    "room_name": "updateVIP Room",
-    "description": "Nice room",
+    "room_name": "VIP Roompropro4",
+    "floor_number": 3,
+    "description": "NiceVIP room",
     "price_per_night": "100.00",
     "max_guests": 2,
-    "total_rooms": 5,
-    "created_at": "2026-06-04T09:30:45.000Z",
-    "updated_at": "2026-06-05T08:11:03.000Z",
+    "total_rooms": 2,
+    "created_at": "2026-06-18T08:06:45.000Z",
+    "updated_at": "2026-06-18T08:06:45.000Z",
     "deleted_at": null,
     "type_name": "Standard",
-    "property_name": "updated12",
+    "property_name": "Sok Hotel Updated",
     "cover_image": null
   }
 }

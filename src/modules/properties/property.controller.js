@@ -6,8 +6,17 @@ const property = require("./property.service");
 const room = require("../rooms/room.service");
 const calendar = require("../calendar/calendar.service");
 
+const getAllCategories = asyncHandler(async (req, res) => {
+  let result = await property.getAllCategories();
+  if (!result) {
+    return errorResponse(res, "Internal server error", 500);
+  }
+  return successResponse(res, "Get All Categories successfully", result, 200);
+});
+
 const getAll = asyncHandler(async (req, res) => {
   let result = await property.getAllApproved(req.query);
+
   if (!result) {
     return errorResponse(res, "Internal server error", 500);
   }
@@ -31,7 +40,7 @@ const getDetail = asyncHandler(async (req, res) => {
 });
 
 const getMyProperty = asyncHandler(async (req, res) => {
-  let result = await property.getMyProperty(req.user.id);
+  let result = await property.getMyProperty(req.user.id, req.query);
   if (!result.result) {
     return errorResponse(res, result.message, result.status, null);
   }
@@ -141,7 +150,7 @@ const createRoom = asyncHandler(async (req, res) => {
 });
 
 const getMyRooms = asyncHandler(async (req, res) => {
-  let result = await room.getMyRooms(req.params.propertyId, req.user.id);
+  let result = await room.getMyRooms(req.params.propertyId, req.user.id, req.query);
 
   if (!result.result) {
     return errorResponse(res, result.message, result.status, null);
@@ -183,7 +192,22 @@ const getPropertyCalendar = asyncHandler(async (req, res) => {
   return res.status(result.status).json(result);
 });
 
+// get Cities
+
+const getCities = asyncHandler(async (req, res) => {
+  const result = await property.getCities();
+  return res.status(result.status).json(result);
+});
+
+// get provinces
+const getProvince = asyncHandler(async (req, res) => {
+  const result = await property.getProvince();
+  return res.status(result.status).json(result);
+});
+
 module.exports = {
+  getAllCategories,
+
   getAll,
   getDetail,
   register,
@@ -202,4 +226,7 @@ module.exports = {
   checkPropertyAvailability,
   getPropertyCalendar,
   getRoomDetailByProperty,
+
+  getCities,
+  getProvince,
 };

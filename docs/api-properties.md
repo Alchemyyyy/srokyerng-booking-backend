@@ -91,6 +91,9 @@ GET /api/properties
 
 Authentication: Not required.
 
+params:
+search,city_id,province_id,category_id,page,limit
+
 success response:
 
 ```json
@@ -99,14 +102,27 @@ success response:
   "message": "Get All properties successfully",
   "data": [
     {
-      "id": 5,
-      "property_name": "testuser10",
-      "description": "A luxurious beachfront resort with infinity pool, spa, and fine dining. Perfect for family vacations and romantic getaways.",
-      "city": "Sihanoukville",
-      "province": "Phnom Penh",
-      "category_name": "Hotel",
-      "image_url": "/uploads/properties/1778656995334-148532588.png",
-      "price_per_night": null
+      "id": 1,
+      "property_name": "Sokha Hotel",
+      "description": "Luxury hotel in Phnom Penh",
+      "number_of_floors": 10,
+      "city": {
+        "city_id": 1,
+        "city_name": "Phnom Penh"
+      },
+      "province": {
+        "province_id": 1,
+        "province_name": "Phnom Penh"
+      },
+      "country": {
+        "country_id": 1,
+        "country_name": "Cambodia"
+      },
+      "category": {
+        "category_id": 1,
+        "category_name": "Hotel"
+      },
+      "image_url": null
     }
   ]
 }
@@ -213,16 +229,17 @@ body
 ```json
 {
   "category_id": 1,
-  "property_name": "testuser10_2",
-  "description": "A luxurious beachfront resort with infinity pool, spa, and fine dining. Perfect for family vacations and romantic getaways.",
-  "address": "Street 123, Sangkat 4, Group 5",
-  "city": "Sihanoukville",
-  "province": "Phnom Penh",
-  "country": "Cambodia",
-  "latitude": 10.6345678,
-  "longitude": 103.4972345,
+  "property_name": "Sokdara Hotel",
+  "description": "Luxury hotel in Phnom Penh with river view and modern facilities.",
+  "address": "No. 22, Street 123, Phnom Penh",
+  "city_id": 1,
+  "province_id": 1,
+  "country_id": 1,
+  "latitude": 11.5564,
+  "longitude": 104.9282,
   "contact_phone": "+855 12 345 678",
-  "contact_email": "reservations@sunsetbeach.com"
+  "contact_email": "contact@sokhahotel.com",
+  "number_of_floors": 10
 }
 ```
 
@@ -231,31 +248,31 @@ success response:
 ```json
 {
   "success": true,
-  "message": "Request successfully",
-  "data": [
-    {
-      "id": 7,
-      "owner_id": 10,
-      "category_id": 1,
-      "status_id": 1,
-      "property_name": "testuser10_3",
-      "description": "A luxurious beachfront resort with infinity pool, spa, and fine dining. Perfect for family vacations and romantic getaways.",
-      "address": "Street 123, Sangkat 4, Group 5",
-      "city": "Sihanoukville",
-      "province": "Phnom Penh",
-      "country": "Cambodia",
-      "latitude": "10.63456780",
-      "longitude": "103.49723450",
-      "contact_phone": "+855 12 345 678",
-      "contact_email": "reservations@sunsetbeach.com",
-      "rejection_reason": null,
-      "approved_by": null,
-      "approved_at": null,
-      "created_at": "2026-05-16T12:51:36.000Z",
-      "updated_at": "2026-05-16T12:51:36.000Z",
-      "deleted_at": null
-    }
-  ]
+  "message": "Property created successfully",
+  "data": {
+    "id": 5,
+    "property_name": "Sokdara Hotel",
+    "slug": null,
+    "description": "Luxury hotel in Phnom Penh with river view and modern facilities.",
+    "address": "No. 22, Street 123, Phnom Penh",
+    "latitude": "11.55640000",
+    "longitude": "104.92820000",
+    "contact_phone": "+855 12 345 678",
+    "contact_email": "contact@sokhahotel.com",
+    "number_of_floors": 10,
+    "created_at": "2026-06-18T09:00:33.000Z",
+    "owner_id": 18,
+    "owner_name": "User17",
+    "owner_email": "menghour42220+2@gmail.com",
+    "category_id": 1,
+    "category_name": "Hotel",
+    "city_id": 1,
+    "city_name": "Phnom Penh",
+    "province_id": 1,
+    "province_name": "Phnom Penh",
+    "country_id": 1,
+    "country_name": "Cambodia"
+  }
 }
 ```
 
@@ -272,16 +289,19 @@ body
 ```json
 {
   "category_id": 1,
-  "property_name": "test update",
-  "description": "A luxurious beachfront resort with infinity pool, spa, and fine dining. Perfect for family vacations and romantic getaways.",
-  "address": "Street 123, Sangkat 4, Group 5",
-  "city": "Sihanoukville",
-  "province": "Phnom Penh",
-  "country": "Cambodia",
-  "latitude": 10.6345678,
-  "longitude": 103.4972345,
-  "contact_phone": "+855 12 345 678",
-  "contact_email": "reservations@sunsetbeach.com"
+  "property_name": "Sokdara Hotel Updated",
+  "description": "Luxury hotel updated description",
+
+  "address": "Street 60, Phnom Penh",
+  "city_id": 2,
+
+  "latitude": 11.5564,
+  "longitude": 104.9282,
+
+  "contact_phone": "098111222",
+  "contact_email": "hotel@sokha.com",
+
+  "number_of_floors": 12
 }
 ```
 
@@ -290,28 +310,30 @@ Success Response:
 ```json
 {
   "success": true,
-  "message": "Updated Successfully",
+  "message": "Property updated successfully",
   "data": {
-    "id": 7,
-    "owner_id": 10,
+    "id": 4,
+    "property_name": "Sokdara Hotel Updated",
+    "slug": null,
+    "description": "Luxury hotel updated description",
+    "address": "Street 60, Phnom Penh",
+    "latitude": "11.55640000",
+    "longitude": "104.92820000",
+    "contact_phone": "098111222",
+    "contact_email": "hotel@sokha.com",
+    "number_of_floors": 12,
+    "created_at": "2026-06-17T09:36:33.000Z",
+    "owner_id": 18,
+    "owner_name": "User17",
+    "owner_email": "menghour42220+2@gmail.com",
     "category_id": 1,
-    "status_id": 1,
-    "property_name": "test update7",
-    "description": "A luxurious beachfront resort with infinity pool, spa, and fine dining. Perfect for family vacations and romantic getaways.",
-    "address": "Street 123, Sangkat 4, Group 5",
-    "city": "Sihanoukville",
-    "province": "Phnom Penh",
-    "country": "Cambodia",
-    "latitude": "10.63456780",
-    "longitude": "103.49723450",
-    "contact_phone": "+855 12 345 678",
-    "contact_email": "reservations@sunsetbeach.com",
-    "rejection_reason": null,
-    "approved_by": null,
-    "approved_at": null,
-    "created_at": "2026-05-16T12:51:36.000Z",
-    "updated_at": "2026-05-16T12:55:16.000Z",
-    "deleted_at": null
+    "category_name": "Hotel",
+    "city_id": 2,
+    "city_name": "Siem Reap City",
+    "province_id": 2,
+    "province_name": "Siem Reap",
+    "country_id": 1,
+    "country_name": "Cambodia"
   }
 }
 ```
@@ -342,6 +364,9 @@ GET /properties/my
 
 Authentication: Required.
 
+params:
+city_id,province_id,category_id,search,page,limit
+
 Success Response
 
 ```json
@@ -350,14 +375,20 @@ Success Response
   "message": "My properties fetched successfully",
   "data": [
     {
-      "id": 5,
-      "property_name": "testuser10",
-      "city": "Sihanoukville",
-      "province": "Phnom Penh",
+      "id": 4,
+      "property_name": "Sok Hotel Updated",
+      "city_id": 2,
+      "city_name": "Siem Reap City",
+      "province_id": 2,
+      "province_name": "Siem Reap",
+      "country_id": 1,
+      "country_name": "Cambodia",
+      "category_id": 1,
       "category_name": "Hotel",
-      "status_name": "approved",
-      "cover_image": "/uploads/properties/1778656995334-148532588.png",
-      "created_at": "2026-05-13T07:19:23.000Z"
+      "status_id": 1,
+      "status_name": "pending",
+      "cover_image": "/uploads/properties/1781769413969-394927412.png",
+      "created_at": "2026-06-17T09:36:33.000Z"
     }
   ]
 }
@@ -378,27 +409,56 @@ Success Response:
   "success": true,
   "message": "get my property successfully",
   "data": {
-    "id": 5,
-    "property_name": "testuser10",
-    "description": "A luxurious beachfront resort with infinity pool, spa, and fine dining. Perfect for family vacations and romantic getaways.",
-    "address": "Street 123, Sangkat 4, Group 5",
-    "city": "Sihanoukville",
-    "province": "Phnom Penh",
-    "country": "Cambodia",
-    "latitude": "10.63456780",
-    "longitude": "103.49723450",
-    "contact_phone": "+855 12 345 678",
-    "contact_email": "reservations@sunsetbeach.com",
-    "created_at": "2026-05-13T07:19:23.000Z",
-    "updated_at": "2026-05-13T07:20:49.000Z",
-    "status_id": 2,
-    "status_name": "approved",
-    "category_id": 1,
-    "category_name": "Hotel",
-    "owner_id": 10,
-    "full_name": "User10",
-    "owner_phone": null,
-    "owner_email": "user10@gmail.com"
+    "id": 4,
+    "property_name": "Sok Hotel Updated",
+    "slug": null,
+    "description": "Luxury hotel updated description",
+    "address": "Street 60, Phnom Penh",
+    "city": {
+      "city_id": 2,
+      "city_name": "Siem Reap City"
+    },
+    "province": {
+      "province_id": 2,
+      "province_name": "Siem Reap"
+    },
+    "country": {
+      "country_id": 1,
+      "country_name": "Cambodia"
+    },
+    "latitude": "11.55640000",
+    "longitude": "104.92820000",
+    "contact_phone": "098111222",
+    "contact_email": "hotel@sokha.com",
+    "number_of_floors": 12,
+    "category": {
+      "category_id": 1,
+      "category_name": "Hotel"
+    },
+    "status": {
+      "status_id": 1,
+      "status_name": "pending"
+    },
+    "owner": {
+      "owner_id": 18,
+      "full_name": "User17",
+      "phone": "0123659870",
+      "email": "menghour42220+2@gmail.com"
+    },
+    "images": [
+      {
+        "image_id": 1,
+        "image_url": "/uploads/properties/1781769413969-394927412.png",
+        "is_cover": true,
+        "sort_order": 0
+      },
+      {
+        "image_id": 2,
+        "image_url": "/uploads/properties/1781769595279-833996104.png",
+        "is_cover": false,
+        "sort_order": 0
+      }
+    ]
   }
 }
 ```
@@ -569,5 +629,195 @@ success response:
     "images": [],
     "amenities": []
   }
+}
+```
+
+## Get all categories (public)
+
+```text
+GET /api/properties/categories
+```
+
+Authorization: not required
+
+success response:
+
+```json
+{
+  "success": true,
+  "message": "Get All Categories successfully",
+  "data": [
+    {
+      "id": 1,
+      "category_name": "Hotel",
+      "description": "Hotel accommodation",
+      "created_at": "2026-05-06T15:18:02.000Z",
+      "updated_at": "2026-05-06T15:18:02.000Z"
+    }
+  ]
+}
+```
+
+## Get all cities (public)
+
+```text
+GET /api/properties/cities
+```
+
+```json
+{
+  "result": true,
+  "message": "Get all cities successfully",
+  "status": 200,
+  "data": [
+    {
+      "id": 1,
+      "province_id": 1,
+      "name": "Phnom Penh"
+    }
+  ]
+}
+```
+
+## Get all provinces (public)
+
+```text
+GET /api/properties/provinces
+```
+
+success response:
+
+```json
+{
+  "result": true,
+  "message": "Get all provinces successfully",
+  "status": 200,
+  "data": [
+    {
+      "id": 4,
+      "country_id": 1,
+      "name": "Battambang"
+    }
+  ]
+}
+```
+
+## Get property detail(public)
+
+```text
+GET /api/properties/propertyId
+```
+
+success response:
+
+```json
+{
+  "success": true,
+  "message": "Get owner detail successfully",
+  "data": {
+    "id": 1,
+    "property_name": "Sokha Hotel",
+    "slug": "sokha-hotel",
+    "description": "Luxury hotel in Phnom Penh",
+    "address": "Street 60, Phnom Penh",
+    "latitude": "11.55640000",
+    "longitude": "104.92820000",
+    "contact_phone": "098111222",
+    "contact_email": "sokha@gmail.com",
+    "number_of_floors": 10,
+    "created_at": "2026-06-16T09:03:00.000Z",
+    "updated_at": "2026-06-16T09:03:00.000Z",
+    "status_id": 2,
+    "status_name": "approved",
+    "category_id": 1,
+    "category_name": "Hotel",
+    "owner_id": 2,
+    "full_name": "Owner Sokha",
+    "owner_phone": "098111222",
+    "owner_email": "owner1@gmail.com",
+    "city_id": 1,
+    "city_name": "Phnom Penh",
+    "province_id": 1,
+    "province_name": "Phnom Penh",
+    "country_id": 1,
+    "country_name": "Cambodia",
+    "images": [],
+    "amenities": [
+      {
+        "id": 1,
+        "amenity_name": "Wi-Fi"
+      },
+      {
+        "id": 4,
+        "amenity_name": "Air Conditioning"
+      },
+      {
+        "id": 5,
+        "amenity_name": "Swimming Pool"
+      }
+    ],
+    "rooms": []
+  }
+}
+```
+
+## Get all properties (admin)
+
+```text
+GET /api/admin/properties
+```
+
+Authorization: required
+
+params:
+city_id,province_id,country_id,category_id,status_id,search,page,limit
+
+success response:
+
+```json
+{
+  "success": true,
+  "message": "Get all properties successfully",
+  "data": [
+    {
+      "id": 5,
+      "property_name": "Sokdara Hotel",
+      "description": "Luxury hotel in Phnom Penh with river view and modern facilities.",
+      "address": "No. 22, Street 123, Phnom Penh",
+      "number_of_floors": 10,
+      "owner": {
+        "owner_id": 18,
+        "owner_name": "User17",
+        "owner_email": "menghour42220+2@gmail.com",
+        "owner_phone": "0123659870"
+      },
+      "category": {
+        "category_id": 1,
+        "category_name": "Hotel"
+      },
+      "status": {
+        "status_id": 1,
+        "status_name": "pending"
+      },
+      "city": {
+        "city_id": 1,
+        "city_name": "Phnom Penh"
+      },
+      "province": {
+        "province_id": 1,
+        "province_name": "Phnom Penh"
+      },
+      "country": {
+        "country_id": 1,
+        "country_name": "Cambodia"
+      },
+      "image_url": null,
+      "rejection_reason": null,
+      "approved_by": null,
+      "approved_at": null,
+      "created_at": "2026-06-18T09:00:33.000Z",
+      "updated_at": "2026-06-18T09:04:17.000Z"
+    }
+  ]
 }
 ```

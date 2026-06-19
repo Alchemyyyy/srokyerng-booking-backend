@@ -30,7 +30,7 @@ const updateReservationStatus = asyncHandler(async (req, res) => {
 });
 
 const getAll = asyncHandler(async (req, res) => {
-  const result = await propertyService.getAll();
+  const result = await propertyService.getAll(req.query);
 
   if (!result) {
     return errorResponse(res, "Internal server error", 500);
