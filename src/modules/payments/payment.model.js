@@ -272,6 +272,29 @@ const setOwnerPaymentAccountActive = async (accountId, isActive) => {
   );
 };
 
+const deleteOwnerPaymentAccount = async (accountId) => {
+  const [result] = await pool.query(
+    `DELETE FROM owner_payment_accounts WHERE id = ?`,
+    [accountId]
+  );
+  return result.affectedRows > 0;
+};
+
+const findPaymentsByOwnerPaymentAccountId = async (accountId) => {
+  const [rows] = await pool.query(
+    `SELECT id FROM payments WHERE owner_payment_account_id = ?`,
+    [accountId]
+  );
+  return rows;
+};
+
+const nullifyOwnerPaymentAccountOnPayments = async (accountId) => {
+  await pool.query(
+    `UPDATE payments SET owner_payment_account_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE owner_payment_account_id = ?`,
+    [accountId]
+  );
+};
+
 const findPaymentStatusByName = async (statusName) => {
   const [rows] = await pool.query(
     "SELECT * FROM payment_statuses WHERE status_name = ? LIMIT 1",
@@ -452,6 +475,9 @@ module.exports = {
   createOwnerPaymentAccount,
   updateOwnerPaymentAccount,
   setOwnerPaymentAccountActive,
+  deleteOwnerPaymentAccount,
+  findPaymentsByOwnerPaymentAccountId,
+  nullifyOwnerPaymentAccountOnPayments,
   findPaymentById,
   findPaymentsByCustomer,
   findPaymentsByOwner,
