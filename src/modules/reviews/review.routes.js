@@ -11,6 +11,12 @@ const ROLES = require("../../constants/roles");
 router.use(authMiddleware);
 
 router.get(
+    "/admin/reviews",
+    roleMiddleware(ROLES.ADMIN),
+    reviewController.getAllReviews
+);
+
+router.get(
     "/my",
     roleMiddleware(ROLES.CUSTOMER),
     reviewController.getMyReviews
@@ -18,12 +24,13 @@ router.get(
 
 router.patch(
     "/:id",
-    roleMiddleware(ROLES.CUSTOMER),
+    roleMiddleware(ROLES.CUSTOMER, ROLES.ADMIN),
     reviewController.updateReview
 );
 
 router.delete(
     "/:id",
+    roleMiddleware(ROLES.CUSTOMER, ROLES.ADMIN),
     reviewController.deleteReview
 );
 

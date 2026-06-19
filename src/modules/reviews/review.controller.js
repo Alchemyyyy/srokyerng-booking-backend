@@ -38,6 +38,8 @@ const createReview = asyncHandler(async (req, res) => {
 const getPropertyReviews = asyncHandler(async (req, res) => {
   const propertyId = req.params.propertyId;
 
+  res.set("Cache-Control", "no-store");
+
   const reviews = await reviewService.getPropertyReviews(propertyId);
 
   return successResponse(res, "Property reviews fetched successfully", reviews);
@@ -45,6 +47,8 @@ const getPropertyReviews = asyncHandler(async (req, res) => {
 
 const getMyReviews = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+
+  res.set("Cache-Control", "no-store");
 
   const reviews = await reviewService.getMyReviews(userId);
 
@@ -87,6 +91,8 @@ const deleteReview = asyncHandler(async (req, res) => {
 });
 
 const getAllReviews = asyncHandler(async (req, res) => {
+  res.set("Cache-Control", "no-store");
+
   const reviews = await reviewService.getAllReviews();
 
   return successResponse(res, "All reviews fetched successfully", reviews);

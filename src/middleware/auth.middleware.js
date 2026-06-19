@@ -3,6 +3,7 @@ const { errorResponse } = require("../utils/apiResponse");
 const { AUTH } = require("../constants/messages");
 const env = require("../config/env");
 
+
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
