@@ -378,6 +378,12 @@ const verifyEmail = async ({ token }) => {
     title: "Email verified",
     message: "Your email address has been verified successfully.",
   });
+
+  return {
+    email: verificationToken.email,
+    fullName: verificationToken.full_name,
+    role: verificationToken.role_name,
+  };
 };
 
 const resendVerificationEmail = async (userId) => {

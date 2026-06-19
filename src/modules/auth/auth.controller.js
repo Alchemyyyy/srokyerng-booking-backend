@@ -135,9 +135,9 @@ const verifyEmail = asyncHandler(async (req, res) => {
     return errorResponse(res, "Validation failed", 400, errors);
   }
 
-  await authService.verifyEmail(payload);
+  const verificationInfo = await authService.verifyEmail(payload);
 
-  return successResponse(res, "Email verified successfully");
+  return successResponse(res, "Email verified successfully", verificationInfo);
 });
 
 const resendVerificationEmail = asyncHandler(async (req, res) => {
