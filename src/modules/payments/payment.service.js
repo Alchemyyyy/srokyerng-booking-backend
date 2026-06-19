@@ -365,7 +365,28 @@ const deactivateOwnerPaymentAccount = async (ownerId, accountId) => {
 };
 
 const deleteOwnerPaymentAccount = async (ownerId, accountId) => {
-  return deactivateOwnerPaymentAccount(ownerId, accountId);
+  const account = await paymentModel.findOwnerPaymentAccountById(accountId, false);
+  if (!account) throwError("Owner payment account not found", 404);
+  if (account.owner_id !== ownerId) {
+    throwError("You can only manage your own payment accounts", 403);
+  }
+
+  // Nullify the reference in any payments that use this account
+  // so the foreign key constraint does not block the delete
+  await paymentModel.nullifyOwnerPaymentAccountOnPayments(accountId);
+
+  // Delete the QR image file if it exists
+  if (account.qr_image_url) {
+    const qrPath = path.join(process.cwd(), account.qr_image_url.replace(/^\//, ""));
+    if (fs.existsSync(qrPath)) {
+      fs.unlinkSync(qrPath);
+    }
+  }
+
+  const deleted = await paymentModel.deleteOwnerPaymentAccount(accountId);
+  if (!deleted) throwError("Owner payment account not found", 404);
+
+  return { id: accountId, deleted: true };
 };
 
 const getPropertyPaymentAccounts = async (propertyId) => {
