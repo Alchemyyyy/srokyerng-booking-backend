@@ -71,6 +71,7 @@ const createRoom = async (propertyId, ownerId, body) => {
     body.price_per_night,
     body.max_guests,
     body.total_rooms,
+    body.floor_number,
   ];
 
   const result = await room.createRoom(data);
@@ -85,6 +86,7 @@ const createRoom = async (propertyId, ownerId, body) => {
       property_id: row.property_id,
       room_type_id: row.room_type_id,
       room_name: row.room_name,
+      floor_number: row.floor_number,
       price_per_night: row.price_per_night,
       max_guests: row.max_guests,
       total_rooms: row.total_rooms,
@@ -167,7 +169,7 @@ const deleteRoom = async (roomId, ownerId) => {
   };
 };
 
-const getMyRooms = async (propertyId, ownerId) => {
+const getMyRooms = async (propertyId, ownerId, query) => {
   const propertyRow = await property.findPropertyById(propertyId);
 
   if (!propertyRow) {
@@ -186,7 +188,17 @@ const getMyRooms = async (propertyId, ownerId) => {
     };
   }
 
-  const rooms = await room.getRoomsByPropertyId(propertyId);
+  const filters = {
+    room_type_id: query.room_type_id || null,
+    min_price: query.min_price || null,
+    max_price: query.max_price || null,
+    max_guests: query.max_guests || null,
+    search: query.search || null,
+    page: query.page || 1,
+    limit: query.limit || 10,
+  };
+
+  const rooms = await room.getRoomsByPropertyId(propertyId, filters);
 
   return {
     status: 200,
@@ -523,6 +535,7 @@ const checkRoomAvailability = async (roomId, query) => {
     data: {
       room_id: roomRow.id,
       room_name: roomRow.room_name,
+      floor_number: roomRow.floor_number,
       total_rooms: roomRow.total_rooms,
       booked_rooms: booked.booked_count,
       available_rooms: availableQuantity,
@@ -573,6 +586,7 @@ const checkPropertyAvailability = async (propertyId, query) => {
       availableRooms.push({
         room_id: item.id,
         room_name: item.room_name,
+        floor_number: item.floor_number,
         room_type: item.type_name,
         price_per_night: item.price_per_night,
         max_guests: item.max_guests,
@@ -586,7 +600,12 @@ const checkPropertyAvailability = async (propertyId, query) => {
     result: true,
     status: 200,
     message: "Property availability checked successfully",
-    data: availableRooms,
+    data: {
+      property_id: propertyRow.id,
+      property_name: propertyRow.property_name,
+      number_of_floors: propertyRow.number_of_floors,
+      available_rooms: availableRooms,
+    },
   };
 };
 

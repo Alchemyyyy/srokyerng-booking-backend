@@ -13,6 +13,9 @@ const amenityController = require("../amenities/amenity.controller");
 const router = express.Router();
 
 router.get("/", propertyController.getAll);
+router.get("/categories", propertyController.getAllCategories);
+router.get("/cities", propertyController.getCities);
+router.get("/provinces", propertyController.getProvince);
 router.post("/", authMiddleware, roleMiddleware(role.OWNER), propertyController.register);
 router.patch(
   "/:id",
@@ -96,7 +99,7 @@ router.get(
   "/:propertyId/rooms/my",
   authMiddleware,
   roleMiddleware(role.OWNER),
-  propertyController.getPropertyRooms
+  propertyController.getMyRooms
 );
 
 router.get(

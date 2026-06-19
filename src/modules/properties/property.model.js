@@ -2,53 +2,78 @@ const pool = require("../../config/db");
 
 let sql = "";
 
+const getAllCategories = async () => {
+  let sql = `
+    SELECT
+      id,
+      category_name,
+      description,
+      created_at,
+      updated_at
+    FROM categories
+    ORDER BY id ASC
+  `;
+  const [rows] = await pool.query(sql);
+  return rows;
+};
+
 const getAllApproved = async (filters = {}) => {
   let sql = `
-      SELECT 
-          p.id,
-          p.property_name,
-          p.description,
-          p.city,
-          p.province,
+    SELECT
+      p.id,
+      p.property_name,
+      p.description,
+      p.number_of_floors,
 
-          c.category_name,
+      p.category_id,
+      c.category_name,
 
-          pi.image_url,
+      city.id AS city_id,
+      city.name AS city_name,
 
-          MIN(r.price_per_night) AS price_per_night
+      province.id AS province_id,
+      province.name AS province_name,
 
-      FROM properties p
+      country.id AS country_id,
+      country.name AS country_name,
 
-      JOIN property_statuses ps 
-          ON p.status_id = ps.id
+      pi.image_url
 
-      JOIN categories c 
-          ON p.category_id = c.id
+    FROM properties p
 
-      LEFT JOIN property_images pi 
-          ON p.id = pi.property_id AND pi.is_cover = TRUE
+    JOIN property_statuses ps
+      ON p.status_id = ps.id
 
-      LEFT JOIN rooms r 
-          ON p.id = r.property_id
+    JOIN categories c
+      ON p.category_id = c.id
 
-      WHERE ps.status_name = 'approved'
+    JOIN cities city
+      ON p.city_id = city.id
+
+    JOIN provinces province
+      ON city.province_id = province.id
+
+    JOIN countries country
+      ON province.country_id = country.id
+
+    LEFT JOIN property_images pi
+      ON p.id = pi.property_id
+      AND pi.is_cover = TRUE
+
+    WHERE ps.status_name = 'approved'
       AND p.deleted_at IS NULL
-    `;
+  `;
 
   const params = [];
 
-  // =========================
-  // FILTERS
-  // =========================
-
-  if (filters.city) {
-    sql += ` AND p.city = ?`;
-    params.push(filters.city);
+  if (filters.city_id) {
+    sql += ` AND city.id = ?`;
+    params.push(filters.city_id);
   }
 
-  if (filters.province) {
-    sql += ` AND p.province = ?`;
-    params.push(filters.province);
+  if (filters.province_id) {
+    sql += ` AND province.id = ?`;
+    params.push(filters.province_id);
   }
 
   if (filters.category_id) {
@@ -61,28 +86,25 @@ const getAllApproved = async (filters = {}) => {
     params.push(`%${filters.search}%`);
   }
 
-  // =========================
-  // GROUP BY (IMPORTANT)
-  // =========================
   sql += `
-      GROUP BY 
-          p.id,
-          p.property_name,
-          p.description,
-          p.city,
-          p.province,
-          c.category_name,
-          pi.image_url
-    `;
+    GROUP BY
+      p.id,
+      p.property_name,
+      p.description,
+      p.number_of_floors,
+      p.category_id,
+      c.category_name,
+      city.id,
+      city.name,
+      province.id,
+      province.name,
+      country.id,
+      country.name,
+      pi.image_url
+  `;
 
-  // =========================
-  // ORDER BY
-  // =========================
   sql += ` ORDER BY p.created_at DESC`;
 
-  // =========================
-  // PAGINATION
-  // =========================
   if (filters.limit && filters.page) {
     const limit = parseInt(filters.limit);
     const page = parseInt(filters.page);
@@ -93,95 +115,184 @@ const getAllApproved = async (filters = {}) => {
   }
 
   const [rows] = await pool.query(sql, params);
-
   return rows;
 };
 
-const getAll = async () => {
-  const sql = `SELECT 
-    p.id,
-    p.property_name,
-    p.description,
-    p.address,
-    p.city,
-    p.province,
-    p.country,
-    p.latitude,
-    p.longitude,
+const getAll = async (filters = {}) => {
+  let sql = `
+    SELECT 
+      p.id,
+      p.property_name,
+      p.description,
+      p.address,
+      p.latitude,
+      p.longitude,
+      p.number_of_floors,
 
-    -- Owner
-    u.id AS owner_id,
-    u.full_name AS owner_name,
-    u.email AS owner_email,
-    u.phone AS owner_phone,
+      -- Owner
+      u.id AS owner_id,
+      u.full_name AS owner_name,
+      u.email AS owner_email,
+      u.phone AS owner_phone,
 
-    -- Category
-    c.id AS category_id,
-    c.category_name,
+      -- Category
+      c.id AS category_id,
+      c.category_name,
 
-    -- Status
-    ps.id AS status_id,
-    ps.status_name,
+      -- Status
+      ps.id AS status_id,
+      ps.status_name,
 
-    -- Image (cover only)
-    pi.id AS image_id,
-    pi.image_url,
-    pi.is_cover,
+      -- Location
+      city.id AS city_id,
+      city.name AS city_name,
 
-    -- Approval
-    p.rejection_reason,
-    p.approved_by,
-    p.approved_at,
+      province.id AS province_id,
+      province.name AS province_name,
 
-    -- Time
-    p.created_at,
-    p.updated_at,
-    p.deleted_at
+      country.id AS country_id,
+      country.name AS country_name,
+
+      -- Cover image
+      pi.image_url,
+
+      -- Approval
+      p.rejection_reason,
+      p.approved_by,
+      p.approved_at,
+
+      -- Time
+      p.created_at,
+      p.updated_at,
+      p.deleted_at
 
     FROM properties p
 
-    -- Owner
-    JOIN users u 
-        ON p.owner_id = u.id
+    JOIN users u ON p.owner_id = u.id
+    JOIN categories c ON p.category_id = c.id
+    JOIN property_statuses ps ON p.status_id = ps.id
 
-    -- Category
-    JOIN categories c 
-        ON p.category_id = c.id
+    LEFT JOIN cities city ON p.city_id = city.id
+    LEFT JOIN provinces province ON city.province_id = province.id
+    LEFT JOIN countries country ON province.country_id = country.id
 
-    -- Status
-    JOIN property_statuses ps 
-        ON p.status_id = ps.id
-
-    -- Images (only cover)
     LEFT JOIN property_images pi 
-        ON p.id = pi.property_id 
-        AND pi.is_cover = TRUE
+      ON p.id = pi.property_id AND pi.is_cover = TRUE
 
-    
-    ORDER BY p.created_at DESC`;
-  // WHERE p.deleted_at IS NULL
-  const [rows] = await pool.query(sql);
+    WHERE 1=1
+  `;
+
+  const params = [];
+
+  // ======================
+  // FILTERS
+  // ======================
+
+  if (filters.city_id) {
+    sql += ` AND city.id = ?`;
+    params.push(filters.city_id);
+  }
+
+  if (filters.province_id) {
+    sql += ` AND province.id = ?`;
+    params.push(filters.province_id);
+  }
+
+  if (filters.country_id) {
+    sql += ` AND country.id = ?`;
+    params.push(filters.country_id);
+  }
+
+  if (filters.category_id) {
+    sql += ` AND p.category_id = ?`;
+    params.push(filters.category_id);
+  }
+
+  if (filters.status_id) {
+    sql += ` AND p.status_id = ?`;
+    params.push(filters.status_id);
+  }
+
+  if (filters.search) {
+    sql += ` AND p.property_name LIKE ?`;
+    params.push(`%${filters.search}%`);
+  }
+
+  // ======================
+  // ORDER
+  // ======================
+  sql += ` ORDER BY p.created_at DESC`;
+
+  // ======================
+  // PAGINATION
+  // ======================
+  if (filters.limit && filters.page) {
+    const limit = parseInt(filters.limit);
+    const page = parseInt(filters.page);
+    const offset = (page - 1) * limit;
+
+    sql += ` LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+  }
+
+  const [rows] = await pool.query(sql, params);
   return rows;
 };
+
 const getById = async (id) => {
-  sql = `SELECT *
-  FROM properties
-  WHERE id = ?
-  AND deleted_at IS NULL`;
-  const [row] = await pool.query(sql, [id]);
-  return row;
+  const sql = `
+    SELECT 
+      p.id,
+      p.property_name,
+      p.slug,
+      p.description,
+      p.address,
+      p.latitude,
+      p.longitude,
+      p.contact_phone,
+      p.contact_email,
+      p.number_of_floors,
+      p.created_at,
+
+      u.id AS owner_id,
+      u.full_name AS owner_name,
+      u.email AS owner_email,
+
+      c.id AS category_id,
+      c.category_name,
+
+      city.id AS city_id,
+      city.name AS city_name,
+
+      pr.id AS province_id,
+      pr.name AS province_name,
+
+      co.id AS country_id,
+      co.name AS country_name
+
+    FROM properties p
+
+    JOIN users u ON p.owner_id = u.id
+    JOIN categories c ON p.category_id = c.id
+    JOIN cities city ON p.city_id = city.id
+    JOIN provinces pr ON city.province_id = pr.id
+    JOIN countries co ON pr.country_id = co.id
+
+    WHERE p.id = ?
+      AND p.deleted_at IS NULL
+  `;
+
+  const [rows] = await pool.query(sql, [id]);
+  return rows;
 };
 
 const getDetail = async (id) => {
   sql = `SELECT
     p.id,
     p.property_name,
+    p.slug,
     p.description,
-
     p.address,
-    p.city,
-    p.province,
-    p.country,
 
     p.latitude,
     p.longitude,
@@ -189,63 +300,100 @@ const getDetail = async (id) => {
     p.contact_phone,
     p.contact_email,
 
+    p.number_of_floors,
+
     p.created_at,
     p.updated_at,
 
+    -- Status
     ps.id AS status_id,
     ps.status_name,
 
+    -- Category
     c.id AS category_id,
     c.category_name,
 
+    -- Owner
     u.id AS owner_id,
     u.full_name,
     u.phone AS owner_phone,
-    u.email AS owner_email
+    u.email AS owner_email,
 
-    FROM properties p
+    -- City
+    city.id AS city_id,
+    city.name AS city_name,
 
-    JOIN property_statuses ps
+    -- Province
+    province.id AS province_id,
+    province.name AS province_name,
+
+    -- Country
+    country.id AS country_id,
+    country.name AS country_name
+
+FROM properties p
+
+JOIN property_statuses ps
     ON p.status_id = ps.id
 
-    JOIN categories c
+JOIN categories c
     ON p.category_id = c.id
 
-    JOIN users u
+JOIN users u
     ON p.owner_id = u.id
 
-    WHERE p.id = ?
-    AND ps.status_name = 'approved'
-    AND p.deleted_at IS NULL`;
+JOIN cities city
+    ON p.city_id = city.id
+
+JOIN provinces province
+    ON city.province_id = province.id
+
+JOIN countries country
+    ON province.country_id = country.id
+
+WHERE p.id = ?
+AND ps.status_name = 'approved'
+AND p.deleted_at IS NULL;`;
 
   let [row] = await pool.query(sql, [id]);
   return row;
 };
 
 const create = async (user_id, body) => {
-  let data = [
+  const sql = `
+    INSERT INTO properties (
+      owner_id,
+      category_id,
+      status_id,
+      property_name,
+      description,
+      address,
+      city_id,
+      latitude,
+      longitude,
+      contact_phone,
+      contact_email,
+      number_of_floors
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const params = [
     user_id,
     body.category_id,
-    1,
+    1, // default status = pending (change if your DB uses different id)
     body.property_name,
-    body.description,
+    body.description || null,
     body.address,
-    body.city,
-    body.province,
-    body.country,
-    body.latitude,
-    body.longitude,
-    body.contact_phone,
-    body.contact_email,
+    body.city_id,
+    body.latitude || null,
+    body.longitude || null,
+    body.contact_phone || null,
+    body.contact_email || null,
+    body.number_of_floors || null,
   ];
-  sql = `INSERT INTO properties (
-          owner_id, category_id, status_id, property_name, description,
-          address, city, province, country, latitude, longitude,
-          contact_phone, contact_email
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-  let [rows] = await pool.query(sql, data);
-  return rows;
+  const [result] = await pool.query(sql, params);
+  return result;
 };
 
 const getImages = async (property_id) => {
@@ -296,38 +444,95 @@ const getRooms = async (property_id) => {
   return rows;
 };
 
-const getMyProperty = async (owner_id) => {
-  sql = `SELECT
-    p.id,
-    p.property_name,
-    p.city,
-    p.province,
+const getMyProperty = async (owner_id, filters = {}) => {
+  let sql = `
+    SELECT
+      p.id,
+      p.property_name,
 
-    c.category_name,
+      city.id AS city_id,
+      city.name AS city_name,
 
-    ps.status_name,
+      province.id AS province_id,
+      province.name AS province_name,
 
-    pi.image_url AS cover_image,
+      country.id AS country_id,
+      country.name AS country_name,
 
-    p.created_at
+      c.id AS category_id,
+      c.category_name,
+
+      ps.id AS status_id,
+      ps.status_name,
+
+      pi.image_url AS cover_image,
+
+      p.created_at
 
     FROM properties p
 
     JOIN categories c
-    ON p.category_id = c.id
+      ON p.category_id = c.id
 
     JOIN property_statuses ps
-    ON p.status_id = ps.id
+      ON p.status_id = ps.id
+
+    JOIN cities city
+      ON p.city_id = city.id
+
+    JOIN provinces province
+      ON city.province_id = province.id
+
+    JOIN countries country
+      ON province.country_id = country.id
 
     LEFT JOIN property_images pi
-    ON p.id = pi.property_id
-    AND pi.is_cover = TRUE
+      ON p.id = pi.property_id
+      AND pi.is_cover = TRUE
 
     WHERE p.owner_id = ?
-    AND p.deleted_at IS NULL
+      AND p.deleted_at IS NULL
+  `;
 
-    ORDER BY p.created_at DESC`;
-  let [rows] = await pool.query(sql, [owner_id]);
+  const params = [owner_id];
+
+  // Filter by city
+  if (filters.city_id) {
+    sql += ` AND city.id = ?`;
+    params.push(filters.city_id);
+  }
+
+  // Filter by province
+  if (filters.province_id) {
+    sql += ` AND province.id = ?`;
+    params.push(filters.province_id);
+  }
+
+  // Filter by category
+  if (filters.category_id) {
+    sql += ` AND c.id = ?`;
+    params.push(filters.category_id);
+  }
+
+  // Search property name
+  if (filters.search) {
+    sql += ` AND p.property_name LIKE ?`;
+    params.push(`%${filters.search}%`);
+  }
+
+  sql += ` ORDER BY p.created_at DESC`;
+
+  // Pagination
+  if (filters.limit && filters.page) {
+    const limit = parseInt(filters.limit);
+    const page = parseInt(filters.page);
+    const offset = (page - 1) * limit;
+
+    sql += ` LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+  }
+
+  const [rows] = await pool.query(sql, params);
   return rows;
 };
 
@@ -375,54 +580,82 @@ const getUpdatePropertyById = async (property_id) => {
 };
 
 const getMyOwnPropertyById = async (property_id, owner_id) => {
-  sql = `SELECT
-    p.id,
-    p.property_name,
-    p.description,
+  const sql = `
+    SELECT
+      p.id,
+      p.property_name,
+      p.slug,
+      p.description,
+      p.address,
 
-    p.address,
-    p.city,
-    p.province,
-    p.country,
+      city.id AS city_id,
+      city.name AS city_name,
 
-    p.latitude,
-    p.longitude,
+      province.id AS province_id,
+      province.name AS province_name,
 
-    p.contact_phone,
-    p.contact_email,
+      country.id AS country_id,
+      country.name AS country_name,
 
-    p.created_at,
-    p.updated_at,
+      p.latitude,
+      p.longitude,
 
-    ps.id AS status_id,
-    ps.status_name,
+      p.contact_phone,
+      p.contact_email,
 
-    c.id AS category_id,
-    c.category_name,
+      p.number_of_floors,
 
-    u.id AS owner_id,
-    u.full_name,
-    u.phone AS owner_phone,
-    u.email AS owner_email
+      ps.id AS status_id,
+      ps.status_name,
+
+      c.id AS category_id,
+      c.category_name,
+
+      u.id AS owner_id,
+      u.full_name,
+      u.phone AS owner_phone,
+      u.email AS owner_email,
+
+      pi.id AS image_id,
+      pi.image_url,
+      pi.is_cover,
+      pi.sort_order
 
     FROM properties p
 
     JOIN property_statuses ps
-    ON p.status_id = ps.id
+      ON p.status_id = ps.id
 
     JOIN categories c
-    ON p.category_id = c.id
+      ON p.category_id = c.id
 
     JOIN users u
-    ON p.owner_id = u.id
+      ON p.owner_id = u.id
+
+    JOIN cities city
+      ON p.city_id = city.id
+
+    JOIN provinces province
+      ON city.province_id = province.id
+
+    JOIN countries country
+      ON province.country_id = country.id
+
+    LEFT JOIN property_images pi
+      ON p.id = pi.property_id
 
     WHERE p.id = ?
-    AND p.owner_id = ?
-    AND p.deleted_at IS NULL`;
+      AND p.owner_id = ?
+      AND p.deleted_at IS NULL
 
-  let [row] = await pool.query(sql, [property_id, owner_id]);
-  return row;
+    ORDER BY pi.sort_order ASC, pi.id ASC
+  `;
+
+  const [rows] = await pool.query(sql, [property_id, owner_id]);
+
+  return rows;
 };
+
 const checkOwnerProperty = async (property_id, owner_id) => {
   sql = `SELECT *
     FROM properties
@@ -435,7 +668,7 @@ const checkOwnerProperty = async (property_id, owner_id) => {
 };
 
 const update = async (property_id, owner_id, body) => {
-  sql = `
+  const sql = `
     UPDATE properties
     SET
       category_id = ?,
@@ -443,15 +676,14 @@ const update = async (property_id, owner_id, body) => {
       description = ?,
 
       address = ?,
-      city = ?,
-      province = ?,
-      country = ?,
+      city_id = ?,
 
       latitude = ?,
       longitude = ?,
 
       contact_phone = ?,
       contact_email = ?,
+      number_of_floors = ?,
 
       status_id = 1,
       rejection_reason = NULL,
@@ -459,28 +691,31 @@ const update = async (property_id, owner_id, body) => {
       approved_at = NULL
 
     WHERE id = ?
-    AND owner_id = ?
+      AND owner_id = ?
+      AND deleted_at IS NULL
   `;
+
   const data = [
     body.category_id,
     body.property_name,
-    body.description,
+    body.description || null,
 
     body.address,
-    body.city,
-    body.province,
-    body.country,
+    body.city_id,
 
-    body.latitude,
-    body.longitude,
+    body.latitude || null,
+    body.longitude || null,
 
-    body.contact_phone,
-    body.contact_email,
+    body.contact_phone || null,
+    body.contact_email || null,
+    body.number_of_floors || null,
 
     property_id,
     owner_id,
   ];
-  await pool.query(sql, data);
+
+  const [result] = await pool.query(sql, data);
+  return result;
 };
 
 const softDeleteProperty = async (propertyId) => {
@@ -719,7 +954,36 @@ const rejectUpdateRequest = async (requestId, adminId, reason) => {
   );
 };
 
+// City Model
+const CityModel = {
+  getAll: async () => {
+    const sql = `
+      SELECT * FROM cities
+    `;
+
+    const [rows] = await pool.query(sql);
+    return rows;
+  },
+
+  getByProvince: async (provinceId) => {
+    const sql = `
+      SELECT * FROM cities
+      WHERE province_id = ?
+    `;
+
+    const [rows] = await pool.query(sql, [provinceId]);
+    return rows;
+  },
+};
+
+const getProvince = async () => {
+  sql = "SELECT * FROM provinces";
+  const [rows] = await pool.query(sql);
+  return rows;
+};
+
 module.exports = {
+  getAllCategories,
   getAllApproved,
   getAll,
   getById,
@@ -751,4 +1015,7 @@ module.exports = {
   getPendingRequests,
   approveUpdateRequest,
   rejectUpdateRequest,
+
+  CityModel,
+  getProvince,
 };

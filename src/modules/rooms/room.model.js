@@ -16,9 +16,8 @@ const getApprovedPropertyById = async (propertyId) => {
   return rows[0];
 };
 
-const getRoomsByPropertyId = async (propertyId) => {
-  const [rows] = await pool.query(
-    `
+const getRoomsByPropertyId = async (propertyId, filters = {}) => {
+  let sql = `
     SELECT
       r.*,
       rt.type_name,
@@ -27,7 +26,7 @@ const getRoomsByPropertyId = async (propertyId) => {
         SELECT image_url
         FROM room_images
         WHERE room_id = r.id
-        AND is_cover = TRUE
+          AND is_cover = TRUE
         LIMIT 1
       ) AS cover_image
 
@@ -37,16 +36,58 @@ const getRoomsByPropertyId = async (propertyId) => {
       ON r.room_type_id = rt.id
 
     WHERE r.property_id = ?
-    AND r.deleted_at IS NULL
-    `,
-    [propertyId]
-  );
+      AND r.deleted_at IS NULL
+  `;
 
+  const params = [propertyId];
+
+  // room type filter
+  if (filters.room_type_id) {
+    sql += ` AND r.room_type_id = ?`;
+    params.push(filters.room_type_id);
+  }
+
+  // price range
+  if (filters.min_price) {
+    sql += ` AND r.price_per_night >= ?`;
+    params.push(filters.min_price);
+  }
+
+  if (filters.max_price) {
+    sql += ` AND r.price_per_night <= ?`;
+    params.push(filters.max_price);
+  }
+
+  // guest capacity
+  if (filters.max_guests) {
+    sql += ` AND r.max_guests >= ?`;
+    params.push(filters.max_guests);
+  }
+
+  // room name search
+  if (filters.search) {
+    sql += ` AND r.room_name LIKE ?`;
+    params.push(`%${filters.search}%`);
+  }
+
+  sql += ` ORDER BY r.created_at DESC`;
+
+  // pagination
+  if (filters.limit && filters.page) {
+    const limit = parseInt(filters.limit);
+    const page = parseInt(filters.page);
+    const offset = (page - 1) * limit;
+
+    sql += ` LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+  }
+
+  const [rows] = await pool.query(sql, params);
   return rows;
 };
 
 const getRoomById = async (roomId) => {
-  const [rows] = await pool.query(
+  const [row] = await pool.query(
     `
     SELECT *
     FROM rooms
@@ -56,7 +97,7 @@ const getRoomById = async (roomId) => {
     [roomId]
   );
 
-  return rows[0];
+  return row[0];
 };
 
 const createRoom = async (data) => {
@@ -69,9 +110,10 @@ const createRoom = async (data) => {
       description,
       price_per_night,
       max_guests,
-      total_rooms
+      total_rooms,
+      floor_number
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
     data
   );
@@ -89,7 +131,8 @@ const updateRoom = async (roomId, data) => {
       description = ?,
       price_per_night = ?,
       max_guests = ?,
-      total_rooms = ?
+      total_rooms = ?,
+      floor_number = ?
     WHERE id = ?
     `,
     [
@@ -99,6 +142,7 @@ const updateRoom = async (roomId, data) => {
       data.price_per_night,
       data.max_guests,
       data.total_rooms,
+      data.floor_number,
       roomId,
     ]
   );
@@ -336,7 +380,6 @@ const getRoomDetailByProperty = async (propertyId, roomId) => {
       AND r.property_id = ?
       AND r.deleted_at IS NULL
       AND p.deleted_at IS NULL
-      AND p.status_id = 2
 
     LIMIT 1
   `;

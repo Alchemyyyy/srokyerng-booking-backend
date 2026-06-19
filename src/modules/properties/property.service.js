@@ -10,57 +10,168 @@ const {
   isValidRow,
 } = require("./property.validation");
 
+const getAllCategories = async () => {
+  const rows = await property.getAllCategories();
+  return rows;
+};
+
 const getAllApproved = async (query) => {
   const filters = {
-    city: query.city || null,
-    province: query.province || null,
+    city_id: query.city_id || null,
+    province_id: query.province_id || null,
     category_id: query.category_id || null,
     search: query.search || null,
     page: query.page || 1,
     limit: query.limit || 10,
   };
-  let rows = await property.getAllApproved(filters);
-  return rows;
+
+  const rows = await property.getAllApproved(filters);
+
+  const result = rows.map((item) => ({
+    id: item.id,
+    property_name: item.property_name,
+    description: item.description,
+    number_of_floors: item.number_of_floors,
+
+    city: {
+      city_id: item.city_id,
+      city_name: item.city_name,
+    },
+
+    province: {
+      province_id: item.province_id,
+      province_name: item.province_name,
+    },
+
+    country: {
+      country_id: item.country_id,
+      country_name: item.country_name,
+    },
+
+    category: {
+      category_id: item.category_id,
+      category_name: item.category_name,
+    },
+
+    image_url: item.image_url,
+  }));
+
+  return result;
 };
 
-const getAll = async () => {
-  const rows = await property.getAll();
-  return rows;
+const getAll = async (query) => {
+  const filters = {
+    city_id: query.city_id || null,
+    province_id: query.province_id || null,
+    country_id: query.country_id || null,
+    category_id: query.category_id || null,
+    status_id: query.status_id || null,
+    search: query.search || null,
+    page: query.page || 1,
+    limit: query.limit || 10,
+  };
+
+  const rows = await property.getAll(filters);
+
+  return rows.map((p) => ({
+    id: p.id,
+    property_name: p.property_name,
+    description: p.description,
+    address: p.address,
+    number_of_floors: p.number_of_floors,
+
+    owner: {
+      owner_id: p.owner_id,
+      owner_name: p.owner_name,
+      owner_email: p.owner_email,
+      owner_phone: p.owner_phone,
+    },
+
+    category: {
+      category_id: p.category_id,
+      category_name: p.category_name,
+    },
+
+    status: {
+      status_id: p.status_id,
+      status_name: p.status_name,
+    },
+
+    city: p.city_id
+      ? {
+          city_id: p.city_id,
+          city_name: p.city_name,
+        }
+      : null,
+
+    province: p.province_id
+      ? {
+          province_id: p.province_id,
+          province_name: p.province_name,
+        }
+      : null,
+
+    country: p.country_id
+      ? {
+          country_id: p.country_id,
+          country_name: p.country_name,
+        }
+      : null,
+
+    image_url: p.image_url || null,
+
+    rejection_reason: p.rejection_reason,
+    approved_by: p.approved_by,
+    approved_at: p.approved_at,
+
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+  }));
 };
 
 const register = async (user_id, body) => {
-  // joi validation
-  const validate = createPropertySchema.validate(body, {
+  // =========================
+  // VALIDATION
+  // =========================
+  const { error, value } = createPropertySchema.validate(body, {
     abortEarly: false,
   });
 
-  // validation error
-  if (validate.error) {
+  if (error) {
     return {
       result: false,
       message: "Invalid fields",
-      error: validate.error.details.map((err) => ({
+      status: 400,
+      error: error.details.map((err) => ({
         field: err.path[0],
         message: err.message,
       })),
-      status: 400,
     };
   }
 
-  // validated data
-  const value = validate.value;
+  // =========================
+  // CREATE PROPERTY
+  // =========================
+  const result = await property.create(user_id, value);
 
-  // create property
-  let row = await property.create(user_id, value);
+  if (!result || !result.insertId) {
+    return {
+      result: false,
+      message: "Failed to create property",
+      status: 500,
+    };
+  }
 
-  // get created property
-  row = await property.getById(row.insertId);
+  // =========================
+  // FETCH CREATED PROPERTY
+  // =========================
+  const [rows] = await property.getById(result.insertId);
 
   return {
     result: true,
-    message: "Request successfully",
+    message: "Property created successfully",
     status: 201,
-    data: row,
+    data: rows,
   };
 };
 
@@ -92,18 +203,32 @@ const getDetail = async (id) => {
   }
 };
 
-const getMyProperty = async (owner_id) => {
-  let row = await property.getMyProperty(owner_id);
-  if (row.length === 0) {
-    throw new Error("Cannot fetch my properties");
-  } else if (row.length > 0) {
+const getMyProperty = async (owner_id, query) => {
+  const filters = {
+    city_id: query.city_id || null,
+    province_id: query.province_id || null,
+    category_id: query.category_id || null,
+    search: query.search || null,
+    page: query.page || 1,
+    limit: query.limit || 10,
+  };
+
+  const rows = await property.getMyProperty(owner_id, filters);
+
+  if (!rows) {
     return {
-      result: true,
-      message: "My properties fetched successfully",
-      status: 200,
-      data: row,
+      result: false,
+      message: "Cannot fetch my properties",
+      status: 500,
     };
   }
+
+  return {
+    result: true,
+    message: "My properties fetched successfully",
+    status: 200,
+    data: rows,
+  };
 };
 
 const updateStatus = async (admin_id, property_id, body) => {
@@ -200,21 +325,81 @@ const updateStatus = async (admin_id, property_id, body) => {
 };
 
 const getMyPropertyById = async (property_id, owner_id) => {
-  let row = await property.getMyOwnPropertyById(property_id, owner_id);
-  if (row.length > 0) {
-    return {
-      result: true,
-      message: "get my property successfully",
-      status: 200,
-      data: row[0],
-    };
-  } else if (row.length === 0) {
+  const rows = await property.getMyOwnPropertyById(property_id, owner_id);
+
+  if (!rows.length) {
     return {
       result: false,
       message: "My property not found",
       status: 404,
     };
   }
+
+  const p = rows[0];
+
+  const data = {
+    id: p.id,
+    property_name: p.property_name,
+    slug: p.slug,
+    description: p.description,
+    address: p.address,
+
+    city: {
+      city_id: p.city_id,
+      city_name: p.city_name,
+    },
+
+    province: {
+      province_id: p.province_id,
+      province_name: p.province_name,
+    },
+
+    country: {
+      country_id: p.country_id,
+      country_name: p.country_name,
+    },
+
+    latitude: p.latitude,
+    longitude: p.longitude,
+
+    contact_phone: p.contact_phone,
+    contact_email: p.contact_email,
+
+    number_of_floors: p.number_of_floors,
+
+    category: {
+      category_id: p.category_id,
+      category_name: p.category_name,
+    },
+
+    status: {
+      status_id: p.status_id,
+      status_name: p.status_name,
+    },
+
+    owner: {
+      owner_id: p.owner_id,
+      full_name: p.full_name,
+      phone: p.owner_phone,
+      email: p.owner_email,
+    },
+
+    images: rows
+      .filter((row) => row.image_id)
+      .map((row) => ({
+        image_id: row.image_id,
+        image_url: row.image_url,
+        is_cover: Boolean(row.is_cover),
+        sort_order: row.sort_order,
+      })),
+  };
+
+  return {
+    result: true,
+    message: "get my property successfully",
+    status: 200,
+    data,
+  };
 };
 
 const update = async (property_id, owner_id, body) => {
@@ -625,7 +810,29 @@ const getPropertyUpdateRequestDetail = async (requestId) => {
   };
 };
 
+const getCities = async () => {
+  const rows = await property.CityModel.getAll();
+  return {
+    result: true,
+    message: "Get all cities successfully",
+    status: 200,
+    data: rows,
+  };
+};
+
+const getProvince = async () => {
+  const rows = await property.getProvince();
+  return {
+    result: true,
+    message: "Get all provinces successfully",
+    status: 200,
+    data: rows,
+  };
+};
+
 module.exports = {
+  getAllCategories,
+
   getAllApproved,
   getAll,
   getDetail,
@@ -645,4 +852,7 @@ module.exports = {
   getPropertyUpdateRequestDetail,
   approvePropertyUpdateRequest,
   rejectPropertyUpdateRequest,
+
+  getCities,
+  getProvince,
 };
