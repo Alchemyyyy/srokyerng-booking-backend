@@ -108,6 +108,31 @@ CREATE TABLE property_statuses (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE countries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE provinces (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    country_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    UNIQUE (country_id, name),
+    FOREIGN KEY (country_id) REFERENCES countries(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE cities (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    province_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    UNIQUE (province_id, name),
+    FOREIGN KEY (province_id) REFERENCES provinces(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
 CREATE TABLE properties (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
@@ -119,9 +144,7 @@ CREATE TABLE properties (
     description TEXT,
 
     address TEXT NOT NULL,
-    city VARCHAR(100) NOT NULL,
-    province VARCHAR(100) NOT NULL,
-    country VARCHAR(100) DEFAULT 'Cambodia',
+    city_id INT NOT NULL,
 
     latitude DECIMAL(10,8),
     longitude DECIMAL(11,8),
@@ -148,7 +171,12 @@ CREATE TABLE properties (
         FOREIGN KEY (status_id) REFERENCES property_statuses(id),
 
     CONSTRAINT fk_properties_admin
-        FOREIGN KEY (approved_by) REFERENCES users(id)
+        FOREIGN KEY (approved_by) REFERENCES users(id),
+
+    CONSTRAINT fk_properties_city
+        FOREIGN KEY (city_id) REFERENCES cities(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
 );
 
 CREATE TABLE property_images (
