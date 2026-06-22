@@ -244,7 +244,7 @@ const getById = async (id) => {
     SELECT 
       p.id,
       p.property_name,
-      p.slug,
+      NULL AS slug,
       p.description,
       p.address,
       p.latitude,
@@ -290,7 +290,7 @@ const getDetail = async (id) => {
   sql = `SELECT
     p.id,
     p.property_name,
-    p.slug,
+    NULL AS slug,
     p.description,
     p.address,
 
@@ -584,7 +584,7 @@ const getMyOwnPropertyById = async (property_id, owner_id) => {
     SELECT
       p.id,
       p.property_name,
-      p.slug,
+      NULL AS slug,
       p.description,
       p.address,
 
