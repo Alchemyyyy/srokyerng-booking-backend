@@ -23,7 +23,9 @@ success response:
       "property_name": "testamh",
       "city": "Phnom Penh",
       "province": "Phnom Penh",
-      "cover_image": null
+      "cover_image": null,
+      "price_per_night": 45.0,
+      "average_rating": 4.8
     }
   ]
 }
