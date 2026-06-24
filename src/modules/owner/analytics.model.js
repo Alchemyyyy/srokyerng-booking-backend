@@ -175,7 +175,7 @@ const getTopProperties = async (ownerId, limit = 10, startDate, endDate) => {
     LEFT JOIN reservations r ON rm.id = r.room_id ${clause}
     LEFT JOIN payments py ON r.id = py.reservation_id AND py.payment_status_id = ?
     LEFT JOIN reviews rev ON r.id = rev.reservation_id
-    WHERE p.owner_id = ?
+    WHERE p.owner_id = ? and p.deleted_at IS NULL
     GROUP BY p.id, p.property_name
     ORDER BY total_revenue DESC
     LIMIT ?
