@@ -1,6 +1,7 @@
 const app = require("./app");
 const pool = require("./config/db");
 const env = require("./config/env");
+const { startAutoCompleteScheduler } = require("./services/reservationScheduler");
 
 const BASE_PORT = env.PORT;
 
@@ -29,6 +30,7 @@ const startServer = async () => {
     await pool.query("SELECT 1");
     console.log("MySQL connected successfully");
     listenWithFallback(BASE_PORT);
+    startAutoCompleteScheduler();
   } catch (error) {
     console.error("Failed to connect to MySQL:", error.message);
     process.exit(1);
