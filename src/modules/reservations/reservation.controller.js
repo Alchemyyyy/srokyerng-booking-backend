@@ -17,26 +17,43 @@ const createReservation = asyncHandler(async (req, res) => {
   const { errors, value } = validateCreateReservation(normalizedData);
 
   if (errors) {
+    console.error("VALIDATION FAILED IN CONTROLLER:", errors, "BODY:", req.body, "NORMALIZED:", normalizedData);
     return errorResponse(res, "Validation failed", 400, errors);
   }
 
-  const reservation = await reservationService.createReservation(req.user.id, value);
+  try {
+    const reservation = await reservationService.createReservation(req.user.id, value);
 
-  // Notify customer (non-blocking)
-  if (notificationService && notificationService.notifyUserSafely) {
-    notificationService
-      .notifyUserSafely({
-        userId: reservation.customer_id,
-        type: notificationService.NOTIFICATION_TYPES.RESERVATION_CREATED,
-        title: "Reservation created",
-        message: "Your reservation has been created.",
-        data: { reservation_id: reservation.id },
-        critical: false,
-      })
-      .catch(() => {});
+    // Notify customer and owner (non-blocking)
+    if (notificationService && notificationService.notifyUserSafely) {
+      notificationService
+        .notifyUserSafely({
+          userId: reservation.customer_id,
+          type: notificationService.NOTIFICATION_TYPES.RESERVATION_CREATED,
+          title: "Reservation created",
+          message: "Your reservation has been created.",
+          data: { reservation_id: reservation.id },
+          critical: false,
+        })
+        .catch(() => {});
+
+      notificationService
+        .notifyUserSafely({
+          userId: reservation.owner_id,
+          type: notificationService.NOTIFICATION_TYPES.RESERVATION_CREATED,
+          title: "New Reservation Received",
+          message: `You have received a new reservation for ${reservation.room_name}.`,
+          data: { reservation_id: reservation.id },
+          critical: false,
+        })
+        .catch(() => {});
+    }
+
+    return successResponse(res, "Reservation created successfully", reservation, 201);
+  } catch (err) {
+    console.error("CREATE RESERVATION SERVICE THREW:", err.message, err.statusCode);
+    throw err;
   }
-
-  return successResponse(res, "Reservation created successfully", reservation, 201);
 });
 
 const getMyReservations = asyncHandler(async (req, res) => {
@@ -90,7 +107,7 @@ const cancelReservation = asyncHandler(async (req, res) => {
     cancellation_reason
   );
 
-  // Notify customer (non-blocking)
+  // Notify customer and owner (non-blocking)
   if (notificationService && notificationService.notifyUserSafely) {
     notificationService
       .notifyUserSafely({
@@ -98,6 +115,17 @@ const cancelReservation = asyncHandler(async (req, res) => {
         type: notificationService.NOTIFICATION_TYPES.RESERVATION_CANCELLED,
         title: "Reservation cancelled",
         message: "Your reservation has been cancelled.",
+        data: { reservation_id: reservation.id },
+        critical: false,
+      })
+      .catch(() => {});
+
+    notificationService
+      .notifyUserSafely({
+        userId: reservation.owner_id,
+        type: notificationService.NOTIFICATION_TYPES.RESERVATION_CANCELLED,
+        title: "Reservation Cancelled",
+        message: `A reservation for ${reservation.room_name} was cancelled by the customer.`,
         data: { reservation_id: reservation.id },
         critical: false,
       })

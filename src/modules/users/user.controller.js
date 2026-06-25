@@ -50,6 +50,12 @@ const updateProfileImage = asyncHandler(async (req, res) => {
   return successResponse(res, "Profile image updated successfully", user);
 });
 
+const deleteProfileImage = asyncHandler(async (req, res) => {
+  const user = await userService.deleteMyProfileImage(req.user.id);
+
+  return successResponse(res, "Profile image removed successfully", user);
+});
+
 const getAll = asyncHandler(async (req, res) => {
   const query = normalizeListUsersQuery(req.query);
   const errors = validateListUsersQuery(query);
@@ -99,6 +105,7 @@ module.exports = {
   updateMe,
   changePassword,
   updateProfileImage,
+  deleteProfileImage,
   getAll,
   getById,
   updateStatus,

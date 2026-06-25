@@ -51,8 +51,8 @@ const getMyWishlists = async (customerId) => {
 
       p.id AS property_id,
       p.property_name,
-      p.city,
-      p.province,
+      city.name AS city,
+      province.name AS province,
 
       (
         SELECT image_url
@@ -83,6 +83,12 @@ const getMyWishlists = async (customerId) => {
 
     JOIN property_statuses ps
       ON ps.id = p.status_id
+
+    LEFT JOIN cities city
+      ON p.city_id = city.id
+
+    LEFT JOIN provinces province
+      ON city.province_id = province.id
 
     WHERE w.customer_id = ?
     AND p.deleted_at IS NULL

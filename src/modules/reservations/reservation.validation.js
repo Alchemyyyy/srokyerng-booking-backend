@@ -4,7 +4,7 @@ const { RESERVATION_STATUS } = require("../../constants/reservation");
 
 const createReservationSchema = Joi.object({
   room_id: Joi.number().integer().positive().required(),
-  check_in_date: Joi.date().iso().greater("now").required(),
+  check_in_date: Joi.date().iso().min(new Date().toISOString().split("T")[0]).required(),
   check_out_date: Joi.date().iso().greater(Joi.ref("check_in_date")).required(),
   total_guests: Joi.number().integer().min(1).max(20).required(),
   special_request: Joi.string().max(1000).optional().allow("", null),

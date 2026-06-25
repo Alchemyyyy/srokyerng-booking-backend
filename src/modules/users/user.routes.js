@@ -17,6 +17,7 @@ router.patch(
   upload.profileImage,
   userController.updateProfileImage
 );
+router.delete("/me/profile-image", authMiddleware, userController.deleteProfileImage);
 router.get("/:id", authMiddleware, roleMiddleware(ROLES.ADMIN), userController.getById);
 router.patch(
   "/:id/status",
