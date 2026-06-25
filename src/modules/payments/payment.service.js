@@ -771,6 +771,40 @@ const rejectRefundRequest = async (adminId, refundRequestId, decisionNote = "") 
   };
 };
 
+const getOwnerRefundRequestById = async (ownerId, refundRequestId) => {
+  const refundRequestModel = require("./refund-request.model");
+
+  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
+  if (!refundRequest) throwError("Refund request not found", 404);
+
+  // Verify the refund request belongs to the owner's property
+  const payment = await paymentModel.findPaymentById(refundRequest.payment_id);
+  if (!payment) throwError("Payment not found", 404);
+  if (payment.owner_id !== ownerId) {
+    throwError("You can only view refund requests for your own properties", 403);
+  }
+
+  // Fetch enriched details similar to the list endpoint
+  const enriched = await refundRequestModel.findRefundRequestsByOwner(ownerId, 1, refundRequestId);
+  if (enriched.length === 0) {
+    // Fallback to basic data if enriched query fails
+    return {
+      id: refundRequest.id,
+      payment_id: refundRequest.payment_id,
+      amount: refundRequest.amount,
+      reason: refundRequest.reason,
+      refund_status: refundRequest.refund_status,
+      decision_note: refundRequest.decision_note,
+      requested_by: refundRequest.requested_by,
+      handled_by: refundRequest.handled_by,
+      requested_at: refundRequest.requested_at,
+      handled_at: refundRequest.handled_at,
+    };
+  }
+
+  return enriched[0];
+};
+
 const getOwnerRefundRequests = async (ownerId, limit = 50) => {
   const refundRequestModel = require("./refund-request.model");
 
@@ -789,6 +823,7 @@ const getOwnerRefundRequests = async (ownerId, limit = 50) => {
     room_name: r.room_name,
     check_in_date: r.check_in_date,
     check_out_date: r.check_out_date,
+    decision_note: r.decision_note,
     reservation_status: r.reservation_status,
     amount: r.amount,
     reason: r.reason,
@@ -824,7 +859,7 @@ const getOwnerPendingRefundRequests = async (ownerId, limit = 50) => {
   }));
 };
 
-const approveOwnerRefundRequest = async (ownerId, refundRequestId, decisionNote = "") => {
+const approveOwnerRefundRequest = async (ownerId, refundRequestId = "") => {
   const refundRequestModel = require("./refund-request.model");
 
   const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
@@ -849,8 +884,7 @@ const approveOwnerRefundRequest = async (ownerId, refundRequestId, decisionNote 
   await refundRequestModel.updateRefundRequestStatus(
     refundRequestId,
     "approved",
-    ownerId,
-    decisionNote
+    ownerId
   );
 
   // Transition payment to refunded
@@ -938,6 +972,7 @@ module.exports = {
   getPendingRefundRequests,
   approveRefundRequest,
   rejectRefundRequest,
+  getOwnerRefundRequestById,
   getOwnerRefundRequests,
   getOwnerPendingRefundRequests,
   approveOwnerRefundRequest,

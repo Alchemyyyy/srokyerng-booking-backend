@@ -59,6 +59,10 @@ router.get(
   "/refund-requests/pending",
   paymentController.getOwnerPendingRefundRequests
 );
+router.get(
+  "/refund-requests/:id",
+  paymentController.getOwnerRefundRequestById
+);
 router.patch(
   "/refund-requests/:id/approve",
   paymentController.approveOwnerRefundRequest

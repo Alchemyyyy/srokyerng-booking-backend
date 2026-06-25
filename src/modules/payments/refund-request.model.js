@@ -55,9 +55,8 @@ const updateRefundRequestStatus = async (id, status, handledBy, decisionNote) =>
   return result.affectedRows > 0;
 };
 
-const findRefundRequestsByOwner = async (ownerId, limit = 50) => {
-  const [rows] = await pool.query(
-    `SELECT rr.*,
+const findRefundRequestsByOwner = async (ownerId, limit = 50, refundRequestId = null) => {
+  let query = `SELECT rr.*,
             p.amount as payment_amount,
             p.reservation_id,
             p.owner_id,
@@ -73,11 +72,18 @@ const findRefundRequestsByOwner = async (ownerId, limit = 50) => {
      JOIN rooms rm ON res.room_id = rm.id
      JOIN properties prop ON rm.property_id = prop.id
      JOIN users u ON res.customer_id = u.id
-     WHERE p.owner_id = ?
-     ORDER BY rr.requested_at DESC
-     LIMIT ?`,
-    [ownerId, limit]
-  );
+     WHERE p.owner_id = ?`;
+  const params = [ownerId];
+
+  if (refundRequestId) {
+    query += ` AND rr.id = ?`;
+    params.push(refundRequestId);
+  }
+
+  query += ` ORDER BY rr.requested_at DESC LIMIT ?`;
+  params.push(limit);
+
+  const [rows] = await pool.query(query, params);
   return rows;
 };
 

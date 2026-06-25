@@ -22,6 +22,18 @@ router.get(
     reviewController.getMyReviews
 );
 
+router.get(
+    "/owner",
+    roleMiddleware(ROLES.OWNER),
+    reviewController.getOwnerReviews
+);
+
+router.patch(
+    "/:id/reply",
+    roleMiddleware(ROLES.OWNER, ROLES.ADMIN),
+    reviewController.replyToReview
+);
+
 router.patch(
     "/:id",
     roleMiddleware(ROLES.CUSTOMER, ROLES.ADMIN),
