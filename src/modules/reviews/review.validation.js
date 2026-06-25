@@ -22,7 +22,14 @@ const updateReviewSchema = Joi.object({
         .max(500)
 }).min(1);
 
+const replyReviewSchema = Joi.object({
+    owner_reply: Joi.string()
+        .max(1000)
+        .required()
+});
+
 module.exports = {
     createReviewSchema,
-    updateReviewSchema
+    updateReviewSchema,
+    replyReviewSchema
 };

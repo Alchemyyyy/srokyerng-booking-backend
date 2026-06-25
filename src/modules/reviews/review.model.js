@@ -62,6 +62,7 @@ const getReviewById = async (reviewId) => {
         SELECT
             reviews.*,
             properties.property_name,
+            properties.owner_id,
             rooms.room_name,
             reservations.check_in_date,
             reservations.check_out_date
@@ -88,6 +89,9 @@ const getPropertyReviews = async (propertyId) => {
             reviews.id,
             reviews.rating,
             reviews.comment,
+            reviews.owner_reply,
+            reviews.replied_by,
+            reviews.replied_at,
             reviews.created_at,
             users.full_name,
             rooms.room_name
@@ -131,6 +135,33 @@ const getMyReviews = async (userId) => {
 
     return reviews;
 };
+const getOwnerReviews = async (ownerId) => {
+    const [reviews] = await db.query(
+        `
+        SELECT
+            reviews.*,
+            properties.property_name,
+            rooms.room_name,
+            users.full_name AS customer_name,
+            reservations.check_in_date,
+            reservations.check_out_date
+        FROM reviews
+        JOIN reservations
+            ON reviews.reservation_id = reservations.id
+        JOIN rooms
+            ON reservations.room_id = rooms.id
+        JOIN properties
+            ON reviews.property_id = properties.id
+        JOIN users
+            ON reviews.customer_id = users.id
+        WHERE properties.owner_id = ?
+        ORDER BY reviews.created_at DESC
+        `,
+        [ownerId]
+    );
+
+    return reviews;
+};
 const updateReview = async (
     reviewId,
     body
@@ -164,6 +195,16 @@ const updateReview = async (
         values
     );
 
+};
+const updateOwnerReply = async (reviewId, ownerReply, repliedBy) => {
+    await db.query(
+        `
+        UPDATE reviews
+        SET owner_reply = ?, replied_by = ?, replied_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+        [ownerReply, repliedBy, reviewId]
+    );
 };
 const deleteReview = async (reviewId) => {
 
@@ -231,7 +272,9 @@ module.exports = {
     getReviewById,
     getPropertyReviews,
     getMyReviews,
+    getOwnerReviews,
     updateReview,
+    updateOwnerReply,
     deleteReview,
     getAllReviews
 };

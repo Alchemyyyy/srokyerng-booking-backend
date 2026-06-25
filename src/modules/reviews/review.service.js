@@ -58,6 +58,10 @@ const getMyReviews = async (userId) => {
   return await reviewModel.getMyReviews(userId);
 };
 
+const getOwnerReviews = async (ownerId) => {
+  return await reviewModel.getOwnerReviews(ownerId);
+};
+
 const updateReview = async (userId, reviewId, body) => {
   const review = await reviewModel.getReviewById(reviewId);
 
@@ -71,6 +75,22 @@ const updateReview = async (userId, reviewId, body) => {
   }
 
   await reviewModel.updateReview(reviewId, body);
+
+  return await reviewModel.getReviewById(reviewId);
+};
+
+const replyToReview = async (userId, reviewId, body) => {
+  const review = await reviewModel.getReviewById(reviewId);
+
+  if (!review) {
+    throw new AppError("Review not found", 404);
+  }
+
+  if (Number(review.owner_id) !== Number(userId)) {
+    throw new AppError("Forbidden: You do not own this property", 403);
+  }
+
+  await reviewModel.updateOwnerReply(reviewId, body.owner_reply, userId);
 
   return await reviewModel.getReviewById(reviewId);
 };
@@ -100,7 +120,9 @@ module.exports = {
   createReview,
   getPropertyReviews,
   getMyReviews,
+  getOwnerReviews,
   updateReview,
+  replyToReview,
   deleteReview,
   getAllReviews,
 };

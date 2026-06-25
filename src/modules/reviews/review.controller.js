@@ -55,6 +55,16 @@ const getMyReviews = asyncHandler(async (req, res) => {
   return successResponse(res, "My reviews fetched successfully", reviews);
 });
 
+const getOwnerReviews = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  res.set("Cache-Control", "no-store");
+
+  const reviews = await reviewService.getOwnerReviews(userId);
+
+  return successResponse(res, "Owner reviews fetched successfully", reviews);
+});
+
 const updateReview = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
@@ -76,6 +86,30 @@ const updateReview = asyncHandler(async (req, res) => {
   const review = await reviewService.updateReview(userId, reviewId, value);
 
   return successResponse(res, "Review updated successfully", review);
+});
+
+const replyToReview = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  const reviewId = toPositiveInt(req.params.id);
+
+  if (!reviewId) {
+    return errorResponse(res, "Review ID must be a positive integer", 400);
+  }
+
+  const { replyReviewSchema } = require("./review.validation");
+  const { error, value } = replyReviewSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+
+  if (error) {
+    return errorResponse(res, error.details[0].message, 400);
+  }
+
+  const review = await reviewService.replyToReview(userId, reviewId, value);
+
+  return successResponse(res, "Review replied successfully", review);
 });
 
 const deleteReview = asyncHandler(async (req, res) => {
@@ -102,7 +136,9 @@ module.exports = {
   createReview,
   getPropertyReviews,
   getMyReviews,
+  getOwnerReviews,
   updateReview,
+  replyToReview,
   deleteReview,
   getAllReviews,
 };
