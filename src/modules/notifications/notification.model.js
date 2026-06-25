@@ -47,15 +47,19 @@ const createNotification = async ({
 };
 
 const buildNotificationFilters = ({ userId, status, type }) => {
-  const clauses = ["notifications.user_id = ?", "notifications.archived_at IS NULL"];
+  const clauses = ["notifications.user_id = ?"];
   const params = [userId];
 
-  if (status === "unread") {
-    clauses.push("notifications.is_read = FALSE");
-  }
-
-  if (status === "read") {
-    clauses.push("notifications.is_read = TRUE");
+  if (status === "archived") {
+    clauses.push("notifications.archived_at IS NOT NULL");
+  } else {
+    clauses.push("notifications.archived_at IS NULL");
+    if (status === "unread") {
+      clauses.push("notifications.is_read = FALSE");
+    }
+    if (status === "read") {
+      clauses.push("notifications.is_read = TRUE");
+    }
   }
 
   if (type) {

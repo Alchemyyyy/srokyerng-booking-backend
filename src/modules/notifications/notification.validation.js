@@ -8,7 +8,7 @@ const validationOptions = {
 const listNotificationsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
-  status: Joi.string().trim().lowercase().valid("all", "read", "unread").default("all"),
+  status: Joi.string().trim().lowercase().valid("all", "read", "unread", "archived").default("all"),
   type: Joi.string().trim().max(80).allow("", null).optional(),
 });
 

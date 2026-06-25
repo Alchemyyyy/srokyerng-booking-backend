@@ -24,6 +24,7 @@ const PAYMENT_SELECT = `
     -- payment status
     ps.id         AS payment_status_id,
     ps.status_name,
+    ps.status_name AS payment_status,
 
     -- customer
     cu.full_name  AS customer_name,

@@ -76,8 +76,8 @@ const createReservation = async (customerId, reservationData) => {
     throw error;
   }
 
-  // Create reservation
-  const reservationId = await reservationModel.createReservation({
+  // Create reservation with transaction and row lock to prevent race conditions
+  const lockResult = await reservationModel.createReservationWithLock({
     customer_id: customerId,
     room_id,
     check_in_date,
@@ -89,7 +89,13 @@ const createReservation = async (customerId, reservationData) => {
     special_request,
   });
 
-  const reservation = await reservationModel.findReservationById(reservationId);
+  if (!lockResult.success) {
+    const error = new Error("Room became unavailable during booking process. Please try again.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const reservation = await reservationModel.findReservationById(lockResult.id);
 
   return reservation;
 };

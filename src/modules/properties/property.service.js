@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const property = require("./property.model");
+const roomModel = require("../rooms/room.model");
 
 const notificationService = require("../notifications/notification.service");
 
@@ -54,6 +55,8 @@ const getAllApproved = async (query) => {
     },
 
     image_url: item.image_url,
+    price_per_night: item.price_per_night,
+    average_rating: item.average_rating,
   }));
 
   return result;
@@ -119,6 +122,8 @@ const getAll = async (query) => {
       : null,
 
     image_url: p.image_url || null,
+    price_per_night: p.price_per_night,
+    average_rating: p.average_rating,
 
     rejection_reason: p.rejection_reason,
     approved_by: p.approved_by,
@@ -263,6 +268,38 @@ const updateStatus = async (admin_id, property_id, body) => {
   // APPROVED
   // =====================================
   if (Number(body.status_id) === 2) {
+    // Validate property has at least one image
+    const images = await property.getImages(property_id);
+    if (!images || images.length === 0) {
+      return {
+        result: false,
+        message: "Property must have at least one image to be approved",
+        status: 400,
+      };
+    }
+
+    // Validate property has at least one room
+    const rooms = await property.getRooms(property_id);
+    if (!rooms || rooms.length === 0) {
+      return {
+        result: false,
+        message: "Property must have at least one room to be approved",
+        status: 400,
+      };
+    }
+
+    // Validate each room has at least one image
+    for (const r of rooms) {
+      const roomImages = await roomModel.getRoomImages(r.id);
+      if (!roomImages || roomImages.length === 0) {
+        return {
+          result: false,
+          message: `Room '${r.room_name}' must have at least one image to approve property`,
+          status: 400,
+        };
+      }
+    }
+
     body.rejection_reason = null;
     body.approved_at = new Date();
 
@@ -377,6 +414,8 @@ const getMyPropertyById = async (property_id, owner_id) => {
       status_name: p.status_name,
     },
 
+    rejection_reason: p.rejection_reason,
+
     owner: {
       owner_id: p.owner_id,
       full_name: p.full_name,
@@ -451,7 +490,7 @@ const update = async (property_id, owner_id, body) => {
   // let row = await property.getById(property_id);
 
   //
-  if (checkRow[0].status_id == 1) {
+  if (checkRow[0].status_id == 1 || checkRow[0].status_id == 3) {
     await property.update(property_id, owner_id, value);
 
     const row = await property.getById(property_id);
@@ -690,6 +729,14 @@ const setCoverImage = async (propertyId, imageId, ownerId) => {
 };
 
 const sortPropertyImages = async (propertyId, images, ownerId) => {
+  if (!Array.isArray(images)) {
+    return {
+      status: 400,
+      result: false,
+      message: "Images sort data must be an array",
+    };
+  }
+
   const propertyRow = await property.findPropertyById(propertyId);
 
   if (!propertyRow) {
@@ -708,9 +755,9 @@ const sortPropertyImages = async (propertyId, images, ownerId) => {
     };
   }
 
-  for (const item of images) {
-    await property.updateImageSortOrder(item.image_id, item.sort_order);
-  }
+  await Promise.all(
+    images.map((item) => property.updateImageSortOrder(item.image_id, item.sort_order))
+  );
 
   return {
     status: 200,
