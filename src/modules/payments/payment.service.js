@@ -135,8 +135,8 @@ const uploadReceipt = async (customerId, paymentId, file) => {
     throwError("You can only upload receipts for your own payments", 403);
   }
 
-  // Only allow upload when payment is pending or already submitted (re-upload)
-  const uploadableStatuses = ["pending", "submitted"];
+  // Only allow upload when payment is pending, submitted (re-upload), or failed (replace after rejection)
+  const uploadableStatuses = ["pending", "submitted", "failed"];
   if (!uploadableStatuses.includes(payment.status_name)) {
     throwError(
       `Cannot upload receipt for a payment with status: ${payment.status_name}`,

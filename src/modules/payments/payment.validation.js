@@ -69,7 +69,7 @@ const ALLOWED_TRANSITIONS = {
   pending: ["submitted"],
   submitted: ["paid", "failed"],
   paid: ["refunded"],
-  failed: [],
+  failed: ["submitted"],
   refunded: [],
 };
 

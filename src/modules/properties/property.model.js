@@ -37,7 +37,21 @@ const getAllApproved = async (filters = {}) => {
       country.id AS country_id,
       country.name AS country_name,
 
-      pi.image_url
+      pi.image_url,
+
+      (
+        SELECT MIN(price_per_night)
+        FROM rooms
+        WHERE property_id = p.id
+        AND deleted_at IS NULL
+      ) AS price_per_night,
+
+      (
+        SELECT AVG(rating)
+        FROM reviews
+        WHERE property_id = p.id
+        AND deleted_at IS NULL
+      ) AS average_rating
 
     FROM properties p
 
@@ -62,6 +76,11 @@ const getAllApproved = async (filters = {}) => {
 
     WHERE ps.status_name = 'approved'
       AND p.deleted_at IS NULL
+      AND EXISTS (
+        SELECT 1 FROM rooms r 
+        WHERE r.property_id = p.id 
+        AND r.deleted_at IS NULL
+      )
   `;
 
   const params = [];
@@ -155,6 +174,20 @@ const getAll = async (filters = {}) => {
 
       -- Cover image
       pi.image_url,
+
+      (
+        SELECT MIN(price_per_night)
+        FROM rooms
+        WHERE property_id = p.id
+        AND deleted_at IS NULL
+      ) AS price_per_night,
+
+      (
+        SELECT AVG(rating)
+        FROM reviews
+        WHERE property_id = p.id
+        AND deleted_at IS NULL
+      ) AS average_rating,
 
       -- Approval
       p.rejection_reason,
@@ -467,6 +500,21 @@ const getMyProperty = async (owner_id, filters = {}) => {
 
       pi.image_url AS cover_image,
 
+      (
+        SELECT MIN(price_per_night)
+        FROM rooms
+        WHERE property_id = p.id
+        AND deleted_at IS NULL
+      ) AS price_per_night,
+
+      (
+        SELECT AVG(rating)
+        FROM reviews
+        WHERE property_id = p.id
+        AND deleted_at IS NULL
+      ) AS average_rating,
+
+      p.rejection_reason,
       p.created_at
 
     FROM properties p
@@ -604,6 +652,7 @@ const getMyOwnPropertyById = async (property_id, owner_id) => {
       p.contact_email,
 
       p.number_of_floors,
+      p.rejection_reason,
 
       ps.id AS status_id,
       ps.status_name,

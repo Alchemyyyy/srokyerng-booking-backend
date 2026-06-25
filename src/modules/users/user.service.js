@@ -120,6 +120,16 @@ const updateMyProfileImage = async (userId, file) => {
   return toSafeUser(updatedUser);
 };
 
+const deleteMyProfileImage = async (userId) => {
+  await ensureActiveUser(userId);
+
+  await userModel.updateProfileImage(userId, null);
+
+  const updatedUser = await ensureActiveUser(userId);
+
+  return toSafeUser(updatedUser);
+};
+
 const listUsers = async ({ role, status, search, page, limit }) => {
   const offset = (page - 1) * limit;
   const [users, total] = await Promise.all([
@@ -187,6 +197,7 @@ module.exports = {
   updateMyProfile,
   changeMyPassword,
   updateMyProfileImage,
+  deleteMyProfileImage,
   listUsers,
   getUserById,
   updateUserStatus,

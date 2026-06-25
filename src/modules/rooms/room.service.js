@@ -3,6 +3,7 @@ const path = require("path");
 
 const room = require("./room.model");
 const property = require("../properties/property.model");
+const { createRoomSchema, updateRoomSchema } = require("./room.validation");
 
 const getPropertyRooms = async (propertyId) => {
   const propertyRow = await room.getApprovedPropertyById(propertyId);
@@ -45,6 +46,22 @@ const getRoomDetail = async (roomId) => {
 };
 
 const createRoom = async (propertyId, ownerId, body) => {
+  const { error, value } = createRoomSchema.validate(body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    return {
+      result: false,
+      message: "Invalid fields",
+      status: 400,
+      error: error.details.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      })),
+    };
+  }
+
   const propertyRow = await property.findPropertyById(propertyId);
 
   if (!propertyRow) {
@@ -65,13 +82,13 @@ const createRoom = async (propertyId, ownerId, body) => {
 
   const data = [
     propertyId,
-    body.room_type_id,
-    body.room_name,
-    body.description,
-    body.price_per_night,
-    body.max_guests,
-    body.total_rooms,
-    body.floor_number,
+    value.room_type_id,
+    value.room_name,
+    value.description,
+    value.price_per_night,
+    value.max_guests,
+    value.total_rooms,
+    value.floor_number,
   ];
 
   const result = await room.createRoom(data);
@@ -95,6 +112,22 @@ const createRoom = async (propertyId, ownerId, body) => {
 };
 
 const updateRoom = async (roomId, ownerId, body) => {
+  const { error, value } = updateRoomSchema.validate(body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    return {
+      result: false,
+      message: "Invalid fields",
+      status: 400,
+      error: error.details.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      })),
+    };
+  }
+
   const roomRow = await room.getRoomById(roomId);
 
   if (!roomRow) {
@@ -124,7 +157,7 @@ const updateRoom = async (roomId, ownerId, body) => {
     };
   }
 
-  await room.updateRoom(roomId, body);
+  await room.updateRoom(roomId, value);
   let row = await room.getRoomById(roomId);
 
   return {
@@ -426,10 +459,14 @@ const sortRoomImages = async (roomId, body, ownerId) => {
     };
   }
 
-  // update sort order
-  for (const item of body) {
-    const imageRow = await room.getRoomImageById(item.image_id);
+  // validate all images exist and belong to room
+  const imageChecks = await Promise.all(
+    body.map((item) => room.getRoomImageById(item.image_id))
+  );
 
+  for (let i = 0; i < body.length; i++) {
+    const imageRow = imageChecks[i];
+    const item = body[i];
     if (!imageRow || imageRow.room_id != roomId) {
       return {
         result: false,
@@ -437,9 +474,12 @@ const sortRoomImages = async (roomId, body, ownerId) => {
         message: `Image ${item.image_id} not found`,
       };
     }
-
-    await room.updateRoomImageSortOrder(item.image_id, item.sort_order);
   }
+
+  // update sort order concurrently
+  await Promise.all(
+    body.map((item) => room.updateRoomImageSortOrder(item.image_id, item.sort_order))
+  );
 
   return {
     result: true,

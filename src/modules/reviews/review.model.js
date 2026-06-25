@@ -89,10 +89,15 @@ const getPropertyReviews = async (propertyId) => {
             reviews.rating,
             reviews.comment,
             reviews.created_at,
-            users.full_name
+            users.full_name,
+            rooms.room_name
         FROM reviews
         JOIN users
             ON reviews.customer_id = users.id
+        JOIN reservations
+            ON reviews.reservation_id = reservations.id
+        JOIN rooms
+            ON reservations.room_id = rooms.id
         WHERE reviews.property_id = ?
         ORDER BY reviews.created_at DESC
         `,
