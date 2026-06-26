@@ -128,7 +128,7 @@ const getOwnerPropertyCalendar = asyncHandler(async (req, res) => {
 });
 
 const getOwnerRoomCalendar = asyncHandler(async (req, res) => {
-  const result = await service.getOwnerRoomCalendar(
+  const result = await calendarService.getOwnerRoomCalendar(
     req.params.roomId,
     req.user.id,
     req.query.start_date,
