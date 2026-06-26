@@ -222,6 +222,19 @@ const updateReservationStatus = async (
   return result.affectedRows > 0;
 };
 
+// Auto-complete reservations where check_out_date has passed
+const autoCompleteExpiredReservations = async () => {
+  const [result] = await pool.query(
+    `UPDATE reservations
+     SET reservation_status = 'completed',
+         updated_at = CURRENT_TIMESTAMP
+     WHERE reservation_status = 'confirmed'
+       AND check_out_date < CURDATE()
+       AND reservation_status NOT IN ('cancelled', 'completed')`
+  );
+  return result.affectedRows;
+};
+
 const findUserById = async (userId) => {
   const [rows] = await pool.query(
     "SELECT id, role_id, full_name, email FROM users WHERE id = ?",
@@ -306,6 +319,7 @@ module.exports = {
   findReservationsByOwner,
   findAllReservations,
   updateReservationStatus,
+  autoCompleteExpiredReservations,
   findUserById,
   findRoleById,
   createReservationWithLock,

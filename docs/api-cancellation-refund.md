@@ -5,6 +5,7 @@
 Customer:
 
 - `GET /reservations/:id/cancellation-policy` — View cancellation policy
+- `GET /reservations/refund-requests/my` - View my request refund 
 - `PATCH /reservations/:id/cancel` — Cancel reservation
 - `POST /reservations/:id/refund-request` — Request refund by reservation
 
@@ -12,6 +13,7 @@ Owner:
 
 - `PATCH /owner/payments/:id/refund` — Directly refund a payment
 - `GET /owner/refund-requests` — List refund requests
+- `GET /owner/refund-requests/:id` — detail refund requests
 - `GET /owner/refund-requests/pending` — List pending refund requests
 - `PATCH /owner/refund-requests/:id/approve` — Approve refund request
 - `PATCH /owner/refund-requests/:id/reject` — Reject refund request
@@ -107,6 +109,40 @@ Success response:
     "reservation_status": "cancelled",
     "cancellation_reason": "My travel plans changed"
   }
+}
+```
+
+### View My Refund Requests
+
+```text
+GET /reservations/refund-requests/my
+```
+
+Requires authentication and `customer` role.
+
+Query parameters:
+
+- `limit` — max results (default 50, max 100)
+
+Returns all refund requests made by the authenticated customer, ordered by most recent first.
+
+Success response:
+
+```json
+{
+  "success": true,
+  "message": "Refund requests retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "payment_id": 100,
+      "amount": 400.00,
+      "reason": "I cancelled my reservation and would like a full refund",
+      "refund_status": "requested",
+      "requested_at": "2026-06-04T05:00:00.000Z",
+      "handled_at": null
+    }
+  ]
 }
 ```
 
@@ -253,6 +289,47 @@ Returns only refund requests with status `requested` for the owner's properties.
 
 Success response same structure as above, filtered to `refund_status: "requested"`.
 
+### View Refund Request Detail
+
+```text
+GET /owner/refund-requests/:id
+```
+
+Requires authentication and `owner` role.
+
+Returns detailed information about a specific refund request for a property owned by the authenticated owner.
+
+Access control:
+
+- The refund request must belong to one of the owner's properties.
+
+Success response:
+
+```json
+{
+  "success": true,
+  "message": "Refund request retrieved successfully",
+  "data": {
+    "id": 1,
+    "payment_id": 100,
+    "payment_amount": 400.00,
+    "reservation_id": 1,
+    "customer_name": "John Doe",
+    "property_name": "Ocean View Hotel",
+    "room_name": "Deluxe Suite",
+    "check_in_date": "2026-07-01",
+    "check_out_date": "2026-07-05",
+    "reservation_status": "cancelled",
+    "amount": 400.00,
+    "reason": "I cancelled my reservation and would like a full refund",
+    "refund_status": "requested",
+    "decision_note": null,
+    "requested_at": "2026-06-04T05:00:00.000Z",
+    "handled_at": null
+  }
+}
+```
+
 ### Approve Refund Request
 
 ```text
@@ -260,14 +337,6 @@ PATCH /owner/refund-requests/:id/approve
 ```
 
 Requires authentication and `owner` role.
-
-Request body (optional):
-
-```json
-{
-  "decision_note": "Approved refund for cancelled reservation"
-}
-```
 
 Notes:
 
