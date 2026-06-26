@@ -6,6 +6,7 @@ const authMiddleware = require("../../middleware/auth.middleware");
 const roleMiddleware = require("../../middleware/role.middleware");
 const ROLES = require("../../constants/roles");
 const paymentController = require("../payments/payment.controller");
+const chatController = require("../chats/chat.controller");
 
 const router = express.Router();
 
@@ -41,6 +42,14 @@ router.get(
   authMiddleware,
   roleMiddleware(ROLES.CUSTOMER),
   paymentController.getMyRefundRequests
+);
+
+// Chat routes scoped under reservations
+router.post(
+  "/:reservationId/chats",
+  authMiddleware,
+  roleMiddleware(ROLES.CUSTOMER, ROLES.OWNER),
+  chatController.startConversationFromReservation
 );
 
 module.exports = router;

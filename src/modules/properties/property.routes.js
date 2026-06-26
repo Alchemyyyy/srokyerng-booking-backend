@@ -9,6 +9,7 @@ const upload = require("../../middleware/upload.middleware");
 const role = require("../../constants/roles");
 const reviewController = require("../reviews/review.controller");
 const amenityController = require("../amenities/amenity.controller");
+const chatController = require("../chats/chat.controller");
 
 const router = express.Router();
 
@@ -112,5 +113,13 @@ router.get(
 router.get("/:propertyId/availability", propertyController.checkPropertyAvailability);
 
 router.get("/:propertyId/availability-calendar", propertyController.getPropertyCalendar);
+
+// Chat routes scoped under properties
+router.post(
+  "/:propertyId/chats",
+  authMiddleware,
+  roleMiddleware(role.CUSTOMER),
+  chatController.startConversationFromProperty
+);
 
 module.exports = router;

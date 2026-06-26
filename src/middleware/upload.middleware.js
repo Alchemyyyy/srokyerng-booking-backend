@@ -114,10 +114,16 @@ const profileImageUpload = createImageUpload({
   prefix: "profile",
 });
 
+const chatImageUpload = createImageUpload({
+  folder: "chats",
+  prefix: "chat",
+});
+
 const upload = routeAwareImageUpload;
 upload.propertyImages = handleUpload(propertyImageUpload.array("images", 10));
 upload.roomImages = handleUpload(roomImageUpload.array("images", 10));
 upload.profileImage = handleUpload(profileImageUpload.single("profile_image"));
+upload.chatImage = handleUpload(chatImageUpload.single("image"));
 upload.createImageUpload = createImageUpload;
 upload.handleUpload = handleUpload;
 
