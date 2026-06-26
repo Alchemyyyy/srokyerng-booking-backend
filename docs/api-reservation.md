@@ -9,6 +9,7 @@
 - `PATCH /reservations/:id/cancel` — Cancel reservation (auth + customer)
 - `POST /reservations/:id/refund-request` — Request refund by reservation (auth + customer)
 - `GET /owner/reservations` — List owner reservations (auth + owner)
+- `PATCH /owner/reservations/:id/status` — Update reservation status (auth + owner)
 - `GET /owner/dashboard` — Owner dashboard counts (auth + owner)
 - `GET /admin/reservations` — List all reservations (auth + admin)
 - `PATCH /admin/reservations/:id/status` — Update reservation status (auth + admin)
@@ -274,6 +275,63 @@ Returns:
   }
 }
 ```
+
+#### Owner Update Reservation Status
+
+```text
+PATCH /owner/reservations/:id/status
+```
+
+Requires authentication and `owner` role. Only the owner of the property associated with the reservation can update its status.
+
+Body:
+
+```json
+{
+  "status": "confirmed",
+  "reason": "Payment verified and reservation confirmed"
+}
+```
+
+Allowed status values: `pending`, `confirmed`, `completed`, `cancelled`
+
+Restrictions:
+
+- Owner must own the property associated with the reservation
+- Cannot change status of `cancelled` reservations
+- Cannot change status of `completed` reservations
+- `reason` is optional (used for cancellation reasons)
+
+Returns:
+
+```json
+{
+  "success": true,
+  "message": "Reservation status updated successfully",
+  "data": {
+    "id": 1,
+    "customer_id": 5,
+    "room_id": 1,
+    "check_in_date": "2026-05-20",
+    "check_out_date": "2026-05-25",
+    "total_guests": 2,
+    "total_nights": 5,
+    "total_amount": 500.00,
+    "reservation_status": "confirmed",
+    "customer_name": "John Doe",
+    "customer_email": "john@example.com",
+    "room_name": "Deluxe Suite",
+    "property_name": "Ocean View Hotel",
+    "owner_id": 2,
+    "owner_name": "Property Owner"
+  }
+}
+```
+
+Notifications:
+
+- When status is changed to `confirmed`, a notification is sent to the customer
+- When status is changed to `cancelled`, a notification is sent to the customer
 
 ### Admin Reservation Endpoints
 

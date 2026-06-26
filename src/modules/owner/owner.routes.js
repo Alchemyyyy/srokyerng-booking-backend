@@ -17,9 +17,12 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(roleMiddleware(ROLES.OWNER));
 
+const reservationController = require("../reservations/reservation.controller");
+
 router.get("/dashboard", ownerController.getDashboard);
 router.get("/properties", ownerController.getProperties);
 router.get("/reservations", ownerController.getReservations);
+router.patch("/reservations/:id/status", reservationController.ownerUpdateReservationStatus);
 
 router.get("/payments", paymentController.getOwnerPayments);
 router.get(

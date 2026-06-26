@@ -227,6 +227,52 @@ const updateReservationStatus = asyncHandler(async (req, res) => {
   return successResponse(res, "Reservation status updated successfully", reservation);
 });
 
+const ownerUpdateReservationStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status, reason } = req.body;
+
+  const validation = validateStatusUpdate(status);
+  if (validation.error) {
+    return errorResponse(res, validation.error, 400);
+  }
+
+  const reservation = await reservationService.ownerUpdateReservationStatus(
+    parseInt(id),
+    status,
+    req.user.id,
+    reason
+  );
+
+  // Notify customer on important status changes (non-blocking)
+  if (notificationService && notificationService.notifyUserSafely) {
+    if (status === "confirmed") {
+      notificationService
+        .notifyUserSafely({
+          userId: reservation.customer_id,
+          type: notificationService.NOTIFICATION_TYPES.RESERVATION_CONFIRMED,
+          title: "Reservation confirmed",
+          message: "Your reservation has been confirmed by the property owner.",
+          data: { reservation_id: reservation.id },
+          critical: true,
+        })
+        .catch(() => {});
+    } else if (status === "cancelled") {
+      notificationService
+        .notifyUserSafely({
+          userId: reservation.customer_id,
+          type: notificationService.NOTIFICATION_TYPES.RESERVATION_CANCELLED,
+          title: "Reservation cancelled",
+          message: "Your reservation has been cancelled by the property owner.",
+          data: { reservation_id: reservation.id },
+          critical: false,
+        })
+        .catch(() => {});
+    }
+  }
+
+  return successResponse(res, "Reservation status updated successfully", reservation);
+});
+
 const checkAvailability = asyncHandler(async (req, res) => {
   const { error, value } = validateAvailabilityQuery(req.query);
 
@@ -296,5 +342,6 @@ module.exports = {
   getOwnerReservations,
   getAdminReservations,
   updateReservationStatus,
+  ownerUpdateReservationStatus,
   requestRefundByReservation,
 };
