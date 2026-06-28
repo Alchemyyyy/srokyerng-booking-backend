@@ -286,6 +286,10 @@ const getById = async (id) => {
       p.contact_email,
       p.number_of_floors,
       p.created_at,
+      p.rejection_reason,
+
+      ps.id AS status_id,
+      ps.status_name,
 
       u.id AS owner_id,
       u.full_name AS owner_name,
@@ -305,6 +309,7 @@ const getById = async (id) => {
 
     FROM properties p
 
+    JOIN property_statuses ps ON p.status_id = ps.id
     JOIN users u ON p.owner_id = u.id
     JOIN categories c ON p.category_id = c.id
     JOIN cities city ON p.city_id = city.id
@@ -334,6 +339,7 @@ const getDetail = async (id) => {
     p.contact_email,
 
     p.number_of_floors,
+    p.rejection_reason,
 
     p.created_at,
     p.updated_at,
