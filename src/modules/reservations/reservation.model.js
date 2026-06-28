@@ -235,6 +235,21 @@ const autoCompleteExpiredReservations = async () => {
   return result.affectedRows;
 };
 
+// Auto-expire pending reservations that have not been paid within PENDING_EXPIRY_HOURS
+const autoExpirePendingReservations = async () => {
+  const { PENDING_EXPIRY_HOURS } = require("../../constants/reservation");
+  const [result] = await pool.query(
+    `UPDATE reservations
+     SET reservation_status = 'cancelled',
+         cancellation_reason = 'Auto-expired: no payment received within ${PENDING_EXPIRY_HOURS} hours',
+         updated_at = CURRENT_TIMESTAMP
+     WHERE reservation_status = 'pending'
+       AND created_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
+    [PENDING_EXPIRY_HOURS]
+  );
+  return result.affectedRows;
+};
+
 const findUserById = async (userId) => {
   const [rows] = await pool.query(
     "SELECT id, role_id, full_name, email FROM users WHERE id = ?",
@@ -320,6 +335,7 @@ module.exports = {
   findAllReservations,
   updateReservationStatus,
   autoCompleteExpiredReservations,
+  autoExpirePendingReservations,
   findUserById,
   findRoleById,
   createReservationWithLock,

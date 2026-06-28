@@ -291,15 +291,14 @@ const checkAvailability = asyncHandler(async (req, res) => {
 
 const requestRefundByReservation = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { amount, reason } = req.body;
+  const { reason } = req.body;
 
   const Joi = require("joi");
   const schema = Joi.object({
-    amount: Joi.number().positive().required(),
     reason: Joi.string().min(10).max(500).required(),
   });
 
-  const { error, value } = schema.validate({ amount, reason });
+  const { error, value } = schema.validate({ reason });
   if (error) {
     const err = new Error(error.details[0].message);
     err.statusCode = 400;
@@ -307,13 +306,39 @@ const requestRefundByReservation = asyncHandler(async (req, res) => {
   }
 
   const validatedId = validateId(id);
+
+  // Look up reservation and payment to auto-calculate refund amount
+  const reservation = await reservationService.getReservationById(validatedId, req.user.id, req.user.role);
+  const paymentModel = require("../payments/payment.model");
+  const payment = await paymentModel.findPaymentByReservationId(validatedId);
+
+  if (!payment) {
+    const err = new Error("No payment found for this reservation");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Auto-calculate refund amount from cancellation policy
+  const { checkRefundEligibility } = require("./cancellation-policy");
+  const refundEligibility = checkRefundEligibility(payment, reservation);
+
+  if (!refundEligibility.eligible) {
+    const err = new Error(refundEligibility.reason);
+    err.statusCode = 400;
+    throw err;
+  }
+
   const paymentService = require("../payments/payment.service");
   const refundRequest = await paymentService.createRefundRequestByReservation(
     validatedId,
     req.user.id,
-    value.amount,
+    refundEligibility.refund_amount,
     value.reason
   );
+
+  // Include the calculated refund info in the response
+  refundRequest.refund_percentage = refundEligibility.refund_percentage;
+  refundRequest.refund_reason = refundEligibility.reason;
 
   return successResponse(res, "Refund request created successfully", refundRequest, 201);
 });

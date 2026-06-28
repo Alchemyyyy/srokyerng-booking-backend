@@ -17,11 +17,14 @@ const checkCancellationEligibility = (reservation) => {
     reasons: [],
     deadline: null,
     status: reservation.reservation_status,
+    refund_percentage: 100,
+    is_late_cancellation: false,
   };
 
   // Already cancelled
   if (reservation.reservation_status === RESERVATION_STATUS.CANCELLED) {
     result.can_cancel = false;
+    result.refund_percentage = 0;
     result.reasons.push("Reservation is already cancelled");
     return result;
   }
@@ -29,6 +32,7 @@ const checkCancellationEligibility = (reservation) => {
   // Completed reservations cannot be cancelled
   if (reservation.reservation_status === RESERVATION_STATUS.COMPLETED) {
     result.can_cancel = false;
+    result.refund_percentage = 0;
     result.reasons.push("Completed reservations cannot be cancelled");
     return result;
   }
@@ -40,6 +44,7 @@ const checkCancellationEligibility = (reservation) => {
 
   if (checkInDate <= now) {
     result.can_cancel = false;
+    result.refund_percentage = 0;
     result.reasons.push("Cannot cancel reservation after check-in date has passed");
     result.check_in_date = reservation.check_in_date;
     return result;
@@ -57,12 +62,13 @@ const checkCancellationEligibility = (reservation) => {
     (deadlineTime - currentTime) / (1000 * 60 * 60)
   );
 
+  // After deadline: still allow cancellation but with 50% refund
   if (currentTime > deadlineTime) {
-    result.can_cancel = false;
+    result.is_late_cancellation = true;
+    result.refund_percentage = 50;
     result.reasons.push(
-      `Cancellation deadline has passed. Deadline was ${deadlineTime.toISOString()}`
+      `Late cancellation — only 50% refund eligible. Deadline was ${deadlineTime.toISOString()}`
     );
-    return result;
   }
 
   // Check reservation status allows cancellation
@@ -71,6 +77,7 @@ const checkCancellationEligibility = (reservation) => {
 
   if (!CUSTOMER_CANCELLABLE_STATUSES.includes(reservation.reservation_status)) {
     result.can_cancel = false;
+    result.refund_percentage = 0;
     result.reasons.push(
       `Cannot cancel reservation with status: ${reservation.reservation_status}`
     );
@@ -150,10 +157,13 @@ const getCancellationPolicy = (reservation) => {
     cancellation_deadline_hours: CANCELLATION_DEADLINE_HOURS,
     cancellation_eligibility: cancellationEligibility,
     policy_summary: {
-      description: "Cancellation is allowed up to 24 hours before check-in",
+      description:
+        "Free cancellation up to 24 hours before check-in for a full refund. " +
+        "After that, cancel before check-in for a 50% refund. " +
+        "No cancellation after check-in.",
       full_refund_deadline: calculateDeadline(reservation.check_in_date),
       late_cancellation_refund_percentage: 50,
-      non_refundable_after: "24 hours before check-in",
+      non_refundable_after: "check-in date",
     },
   };
 

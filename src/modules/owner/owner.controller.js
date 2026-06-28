@@ -138,6 +138,82 @@ const getOwnerRoomCalendar = asyncHandler(async (req, res) => {
   return res.status(result.status).json(result);
 });
 
+/**
+ * Deactivate (suspend) a property
+ * @route PATCH /api/owner/properties/:id/deactivate
+ * @access Owner only
+ */
+const deactivateProperty = asyncHandler(async (req, res) => {
+  const propertyModel = require("../properties/property.model");
+  const property = await propertyModel.findPropertyById(req.params.id);
+
+  if (!property) {
+    const { errorResponse } = require("../../utils/apiResponse");
+    return errorResponse(res, "Property not found", 404);
+  }
+
+  // Verify ownership
+  if (Number(property.owner_id) !== Number(req.user.id)) {
+    const { errorResponse } = require("../../utils/apiResponse");
+    return errorResponse(res, "You can only manage your own properties", 403);
+  }
+
+  // Only approved (2) properties can be deactivated
+  if (Number(property.status_id) !== 2) {
+    const { errorResponse } = require("../../utils/apiResponse");
+    return errorResponse(res, "Only approved properties can be deactivated", 400);
+  }
+
+  // Set to suspended (4)
+  await propertyModel.updateStatus(null, property.id, {
+    status_id: 4,
+    rejection_reason: null,
+    approved_at: property.approved_at,
+  });
+
+  const updated = await propertyModel.getUpdatePropertyById(property.id);
+
+  return successResponse(res, "Property deactivated successfully", updated[0]);
+});
+
+/**
+ * Activate (re-enable) a property
+ * @route PATCH /api/owner/properties/:id/activate
+ * @access Owner only
+ */
+const activateProperty = asyncHandler(async (req, res) => {
+  const propertyModel = require("../properties/property.model");
+  const property = await propertyModel.findPropertyById(req.params.id);
+
+  if (!property) {
+    const { errorResponse } = require("../../utils/apiResponse");
+    return errorResponse(res, "Property not found", 404);
+  }
+
+  // Verify ownership
+  if (Number(property.owner_id) !== Number(req.user.id)) {
+    const { errorResponse } = require("../../utils/apiResponse");
+    return errorResponse(res, "You can only manage your own properties", 403);
+  }
+
+  // Only suspended (4) properties can be reactivated
+  if (Number(property.status_id) !== 4) {
+    const { errorResponse } = require("../../utils/apiResponse");
+    return errorResponse(res, "Only suspended properties can be reactivated", 400);
+  }
+
+  // Set back to approved (2)
+  await propertyModel.updateStatus(null, property.id, {
+    status_id: 2,
+    rejection_reason: null,
+    approved_at: property.approved_at,
+  });
+
+  const updated = await propertyModel.getUpdatePropertyById(property.id);
+
+  return successResponse(res, "Property activated successfully", updated[0]);
+});
+
 module.exports = {
   getDashboard,
   getProperties,
@@ -147,4 +223,6 @@ module.exports = {
 
   getOwnerPropertyCalendar,
   getOwnerRoomCalendar,
+  deactivateProperty,
+  activateProperty,
 };

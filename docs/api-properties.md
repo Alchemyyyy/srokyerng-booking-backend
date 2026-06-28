@@ -356,6 +356,72 @@ Success Response:
 }
 ```
 
+## Deactivate Property (Owner only)
+
+```text
+PATCH /owner/properties/:id/deactivate
+```
+
+Authentication: Required (owner role).
+
+Takes an `approved` property offline temporarily (sets status to `suspended`).
+
+Restrictions:
+
+- Owner must own the property
+- Only `approved` properties can be deactivated
+- No admin approval required
+
+Success Response:
+
+```json
+{
+  "success": true,
+  "message": "Property deactivated successfully",
+  "data": {
+    "id": 1,
+    "property_name": "Sokha Hotel",
+    "status_name": "suspended",
+    "rejection_reason": null,
+    "approved_at": "2026-05-20T10:00:00.000Z",
+    "approved_by_name": "Admin User"
+  }
+}
+```
+
+## Activate Property (Owner only)
+
+```text
+PATCH /owner/properties/:id/activate
+```
+
+Authentication: Required (owner role).
+
+Re-enables a `suspended` property (sets status back to `approved`).
+
+Restrictions:
+
+- Owner must own the property
+- Only `suspended` properties can be reactivated
+- No admin approval required (property was already approved before)
+
+Success Response:
+
+```json
+{
+  "success": true,
+  "message": "Property activated successfully",
+  "data": {
+    "id": 1,
+    "property_name": "Sokha Hotel",
+    "status_name": "approved",
+    "rejection_reason": null,
+    "approved_at": "2026-05-20T10:00:00.000Z",
+    "approved_by_name": "Admin User"
+  }
+}
+```
+
 ## Get My Properties (Owner only)
 
 ```text

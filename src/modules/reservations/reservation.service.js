@@ -166,35 +166,12 @@ const cancelReservation = async (
     throw error;
   }
 
-  // Check if cancellation is allowed
-  if (reservation.reservation_status === RESERVATION_STATUS.CANCELLED) {
-    const error = new Error("Reservation is already cancelled");
-    error.statusCode = 400;
-    throw error;
-  }
+  // Use the cancellation policy to check eligibility
+  const { checkCancellationEligibility, checkRefundEligibility } = require("./cancellation-policy");
+  const eligibility = checkCancellationEligibility(reservation);
 
-  if (reservation.reservation_status === RESERVATION_STATUS.COMPLETED) {
-    const error = new Error("Completed reservations cannot be cancelled");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  // Check if check-in date is in the past
-  const checkInDate = new Date(reservation.check_in_date);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  if (checkInDate <= now) {
-    const error = new Error("Cannot cancel reservation after check-in date has passed");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  // Check if status allows cancellation
-  if (!CUSTOMER_CANCELLABLE_STATUSES.includes(reservation.reservation_status)) {
-    const error = new Error(
-      `Cannot cancel reservation with status: ${reservation.reservation_status}`
-    );
+  if (!eligibility.can_cancel) {
+    const error = new Error(eligibility.reasons.join(". "));
     error.statusCode = 400;
     throw error;
   }
@@ -207,6 +184,54 @@ const cancelReservation = async (
   );
 
   const updatedReservation = await reservationModel.findReservationById(reservationId);
+
+  // Auto-create refund request if there is a paid payment
+  let refund_info = null;
+  try {
+    const paymentModel = require("../payments/payment.model");
+    const refundRequestModel = require("../payments/refund-request.model");
+    const payment = await paymentModel.findPaymentByReservationId(reservationId);
+
+    if (payment && payment.status_name === "paid") {
+      // Calculate refund amount based on policy
+      const refundEligibility = checkRefundEligibility(payment, updatedReservation);
+
+      if (refundEligibility.eligible && refundEligibility.refund_amount > 0) {
+        // Check no existing pending refund request
+        const existingRefunds = await refundRequestModel.findRefundRequestsByPaymentId(payment.id);
+        const hasPending = existingRefunds.some((r) => r.refund_status === "requested");
+
+        if (!hasPending) {
+          const refundReason = eligibility.is_late_cancellation
+            ? `Late cancellation (50% refund) — ${cancellationReason || "Cancelled by customer"}`
+            : `Cancellation (full refund) — ${cancellationReason || "Cancelled by customer"}`;
+
+          const insertId = await refundRequestModel.createRefundRequest(
+            payment.id,
+            customerId,
+            refundEligibility.refund_amount,
+            refundReason
+          );
+
+          const refundRequest = await refundRequestModel.findRefundRequestById(insertId);
+          refund_info = {
+            refund_request_id: refundRequest.id,
+            payment_id: payment.id,
+            refund_amount: refundEligibility.refund_amount,
+            refund_percentage: refundEligibility.refund_percentage,
+            refund_reason: refundEligibility.reason,
+            refund_status: refundRequest.refund_status,
+          };
+        }
+      }
+    }
+  } catch (refundError) {
+    // Don't fail the cancellation if refund creation fails
+    console.error("Auto-refund creation error:", refundError.message);
+  }
+
+  // Attach refund info to the response
+  updatedReservation.refund_info = refund_info;
 
   return updatedReservation;
 };

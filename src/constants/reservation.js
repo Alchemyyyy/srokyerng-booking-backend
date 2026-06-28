@@ -16,4 +16,7 @@ module.exports = {
 
   // After check-in date passed, cannot cancel
   CANCELLATION_DEADLINE_HOURS: 24, // hours before check-in
+
+  // Auto-expire pending reservations after this many hours
+  PENDING_EXPIRY_HOURS: 48,
 };

@@ -20,20 +20,39 @@ const autoCompleteReservations = async () => {
   }
 };
 
+const autoExpirePendingReservations = async () => {
+  try {
+    const reservationModel = require("../modules/reservations/reservation.model");
+    const affectedRows = await reservationModel.autoExpirePendingReservations();
+    if (affectedRows > 0) {
+      console.log(
+        `[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] Auto-expired ${affectedRows} pending reservation(s)`
+      );
+    }
+  } catch (error) {
+    console.error("Auto-expire pending reservations error:", error.message);
+  }
+};
+
+const runScheduledTasks = async () => {
+  await autoCompleteReservations();
+  await autoExpirePendingReservations();
+};
+
 const startAutoCompleteScheduler = () => {
   // Run immediately on startup
-  autoCompleteReservations();
+  runScheduledTasks();
 
   // Then run every hour
-  intervalId = setInterval(autoCompleteReservations, AUTO_COMPLETE_INTERVAL);
-  console.log("Auto-complete reservations scheduler started (every hour)");
+  intervalId = setInterval(runScheduledTasks, AUTO_COMPLETE_INTERVAL);
+  console.log("Reservation scheduler started (auto-complete + auto-expire, every hour)");
 };
 
 const stopAutoCompleteScheduler = () => {
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;
-    console.log("Auto-complete reservations scheduler stopped");
+    console.log("Reservation scheduler stopped");
   }
 };
 

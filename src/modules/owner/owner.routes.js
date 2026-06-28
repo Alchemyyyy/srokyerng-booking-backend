@@ -21,6 +21,8 @@ const reservationController = require("../reservations/reservation.controller");
 
 router.get("/dashboard", ownerController.getDashboard);
 router.get("/properties", ownerController.getProperties);
+router.patch("/properties/:id/deactivate", ownerController.deactivateProperty);
+router.patch("/properties/:id/activate", ownerController.activateProperty);
 router.get("/reservations", ownerController.getReservations);
 router.patch("/reservations/:id/status", reservationController.ownerUpdateReservationStatus);
 

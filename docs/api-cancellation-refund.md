@@ -97,6 +97,8 @@ Notes:
 - Only cancellable statuses: `pending`, `confirmed`.
 - Cannot cancel after check-in date has passed.
 - Cannot cancel already cancelled or completed reservations.
+- **Late cancellation** (after 24h deadline but before check-in) is allowed but only eligible for 50% refund.
+- If the reservation has a `paid` payment, a **refund request is automatically created** with the policy-calculated amount.
 
 Success response:
 
@@ -107,10 +109,20 @@ Success response:
   "data": {
     "id": 1,
     "reservation_status": "cancelled",
-    "cancellation_reason": "My travel plans changed"
+    "cancellation_reason": "My travel plans changed",
+    "refund_info": {
+      "refund_request_id": 5,
+      "payment_id": 100,
+      "refund_amount": 400.00,
+      "refund_percentage": 100,
+      "refund_reason": "Full refund eligible - cancelled before deadline",
+      "refund_status": "requested"
+    }
   }
 }
 ```
+
+> If no paid payment exists, `refund_info` will be `null`.
 
 ### View My Refund Requests
 
@@ -158,15 +170,14 @@ Request body:
 
 ```json
 {
-  "amount": 400.00,
-  "reason": "I cancelled my reservation and would like a full refund"
+  "reason": "I cancelled my reservation and would like a refund"
 }
 ```
 
 Notes:
 
-- `amount` is required, must be positive and cannot exceed the payment amount.
 - `reason` is required, between 10 and 500 characters.
+- `amount` is **auto-calculated** based on the cancellation policy (100% before deadline, 50% after). Customers do not specify the refund amount.
 - Looks up the payment associated with the reservation automatically.
 - Only `paid` payments are eligible for refund request.
 - Customer can only request refunds for their own reservations.
@@ -183,8 +194,10 @@ Success response (201):
     "payment_id": 100,
     "requested_by": 10,
     "amount": 400.00,
-    "reason": "I cancelled my reservation and would like a full refund",
+    "reason": "I cancelled my reservation and would like a refund",
     "refund_status": "requested",
+    "refund_percentage": 100,
+    "refund_reason": "Full refund eligible - cancelled before deadline",
     "requested_at": "2026-06-04T05:00:00.000Z"
   }
 }
@@ -537,11 +550,15 @@ Success response:
 
 ## Business Rules
 
-1. **Cancellation deadline:** 24 hours before check-in date.
-2. **Cancellable statuses:** `pending`, `confirmed`.
-3. **Full refund (100%):** When cancelled before the 24-hour deadline.
-4. **Partial refund (50%):** When cancelled after the deadline but before check-in.
-5. **Refund eligibility:** Only `paid` payments can be refunded.
-6. **Refund requires cancellation:** Reservation must be `cancelled` before refund.
-7. **Owner scope:** Owners can only manage refunds for their own properties.
-8. **Admin scope:** Admins can view and process all refund requests.
+1. **Cancellation before deadline (24h before check-in):** Allowed — 100% refund eligible.
+2. **Late cancellation (after deadline, before check-in):** Allowed — 50% refund eligible.
+3. **After check-in:** Cancellation not allowed.
+4. **Cancellable statuses:** `pending`, `confirmed`.
+5. **Auto-refund on cancel:** When a customer cancels a reservation with a `paid` payment, a refund request is automatically created with the policy-calculated amount.
+6. **Refund amount:** Auto-calculated by the system based on the cancellation policy. Customers only provide a `reason`.
+7. **Refund eligibility:** Only `paid` payments can be refunded.
+8. **Refund requires cancellation:** Reservation must be `cancelled` before refund.
+9. **Owner scope:** Owners can only manage refunds for their own properties.
+10. **Admin scope:** Admins can view and process all refund requests.
+11. **Auto-expire pending reservations:** Reservations in `pending` status for more than 48 hours are automatically cancelled by the system with reason `"Auto-expired: no payment received within 48 hours"`.
+12. **Auto-complete confirmed reservations:** Reservations in `confirmed` status are automatically marked as `completed` after the check-out date passes.
