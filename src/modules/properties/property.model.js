@@ -726,19 +726,19 @@ const update = async (property_id, owner_id, body) => {
   const sql = `
     UPDATE properties
     SET
-      category_id = ?,
-      property_name = ?,
-      description = ?,
+      category_id = COALESCE(?, category_id),
+      property_name = COALESCE(?, property_name),
+      description = COALESCE(?, description),
 
-      address = ?,
-      city_id = ?,
+      address = COALESCE(?, address),
+      city_id = COALESCE(?, city_id),
 
-      latitude = ?,
-      longitude = ?,
+      latitude = COALESCE(?, latitude),
+      longitude = COALESCE(?, longitude),
 
-      contact_phone = ?,
-      contact_email = ?,
-      number_of_floors = ?,
+      contact_phone = COALESCE(?, contact_phone),
+      contact_email = COALESCE(?, contact_email),
+      number_of_floors = COALESCE(?, number_of_floors),
 
       status_id = 1,
       rejection_reason = NULL,
@@ -751,19 +751,19 @@ const update = async (property_id, owner_id, body) => {
   `;
 
   const data = [
-    body.category_id,
-    body.property_name,
-    body.description || null,
+    body.category_id !== undefined ? body.category_id : null,
+    body.property_name !== undefined ? body.property_name : null,
+    body.description !== undefined ? body.description : null,
 
-    body.address,
-    body.city_id,
+    body.address !== undefined ? body.address : null,
+    body.city_id !== undefined ? body.city_id : null,
 
-    body.latitude || null,
-    body.longitude || null,
+    body.latitude !== undefined ? body.latitude : null,
+    body.longitude !== undefined ? body.longitude : null,
 
-    body.contact_phone || null,
-    body.contact_email || null,
-    body.number_of_floors || null,
+    body.contact_phone !== undefined ? body.contact_phone : null,
+    body.contact_email !== undefined ? body.contact_email : null,
+    body.number_of_floors !== undefined ? body.number_of_floors : null,
 
     property_id,
     owner_id,
