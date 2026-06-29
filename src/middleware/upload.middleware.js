@@ -113,11 +113,55 @@ const profileImageUpload = createImageUpload({
   folder: "profiles",
   prefix: "profile",
 });
+const chatFileFilter = () => {
+  const ALLOWED_CHAT_MIME_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "audio/webm",
+    "audio/ogg",
+    "audio/mp3",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/x-m4a",
+    "audio/m4a"
+  ];
+  return (_req, file, cb) => {
+    if (ALLOWED_CHAT_MIME_TYPES.includes(file.mimetype) || file.mimetype.startsWith("audio/")) {
+      return cb(null, true);
+    }
 
-const chatImageUpload = createImageUpload({
-  folder: "chats",
-  prefix: "chat",
-});
+    return cb(
+      new Error(
+        "Invalid file type. Allowed types: images and audio files."
+      )
+    );
+  };
+};
+
+const createChatUpload = () => {
+  const uploadDir = ensureUploadDir("chats");
+
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const uniqueName = `chat-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+
+      cb(null, `${uniqueName}${ext}`);
+    },
+  });
+
+  return multer({
+    storage,
+    fileFilter: chatFileFilter(),
+    limits: {
+      fileSize: MAX_IMAGE_FILE_SIZE_MB * 1024 * 1024,
+    },
+  });
+};
+
+const chatImageUpload = createChatUpload();
 
 const upload = routeAwareImageUpload;
 upload.propertyImages = handleUpload(propertyImageUpload.array("images", 10));
