@@ -113,6 +113,22 @@ const startConversationFromReservation = asyncHandler(async (req, res) => {
   return successResponse(res, "Conversation created successfully", conversation, 201);
 });
 
+const unsendMessage = asyncHandler(async (req, res) => {
+  const { conversationId, messageId } = req.params;
+
+  if (!conversationId || isNaN(Number(conversationId)) || !messageId || isNaN(Number(messageId))) {
+    return errorResponse(res, "Invalid IDs", 400);
+  }
+
+  const result = await chatService.unsendMessage(
+    Number(conversationId),
+    Number(messageId),
+    req.user.id
+  );
+
+  return successResponse(res, "Message unsent successfully", result);
+});
+
 module.exports = {
   createConversation,
   getMyConversations,
@@ -121,4 +137,5 @@ module.exports = {
   markAsRead,
   startConversationFromProperty,
   startConversationFromReservation,
+  unsendMessage,
 };

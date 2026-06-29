@@ -164,6 +164,25 @@ const markMessagesAsRead = async (conversationId, userId) => {
   return result.affectedRows;
 };
 
+const findMessageById = async (messageId) => {
+  const [rows] = await pool.query(
+    `
+    SELECT * FROM chat_messages WHERE id = ?
+    `,
+    [messageId]
+  );
+  return rows[0];
+};
+
+const deleteMessage = async (messageId) => {
+  await pool.query(
+    `
+    DELETE FROM chat_messages WHERE id = ?
+    `,
+    [messageId]
+  );
+};
+
 module.exports = {
   findPropertyById,
   findReservationById,
@@ -175,4 +194,6 @@ module.exports = {
   getConversationsForUser,
   getMessagesByConversationId,
   markMessagesAsRead,
+  findMessageById,
+  deleteMessage,
 };

@@ -33,6 +33,13 @@ router.post(
   chatController.sendMessage
 );
 
+// DELETE /api/chats/:conversationId/messages/:messageId - Unsend a message
+router.delete(
+  "/:conversationId/messages/:messageId",
+  ...chatAuth,
+  chatController.unsendMessage
+);
+
 // PATCH /api/chats/:conversationId/read - Mark messages as read
 router.patch(
   "/:conversationId/read",

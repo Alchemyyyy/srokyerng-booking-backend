@@ -258,6 +258,38 @@ const startConversationFromReservation = async (
   return conversation;
 };
 
+const unsendMessage = async (conversationId, messageId, userId) => {
+  const conversation = await chatModel.findConversationById(conversationId);
+
+  if (!conversation) {
+    throw new AppError("Conversation not found", 404);
+  }
+
+  if (
+    conversation.customer_id !== userId &&
+    conversation.owner_id !== userId
+  ) {
+    throw new AppError(
+      "You do not have access to this conversation",
+      403
+    );
+  }
+
+  const message = await chatModel.findMessageById(messageId);
+  if (!message) {
+    throw new AppError("Message not found", 404);
+  }
+
+  if (message.sender_id !== userId) {
+    throw new AppError("You can only unsend your own messages", 403);
+  }
+
+  await chatModel.deleteMessage(messageId);
+  await chatModel.updateConversationLastMessage(conversationId);
+
+  return { messageId };
+};
+
 module.exports = {
   createConversation,
   getMyConversations,
@@ -266,4 +298,5 @@ module.exports = {
   markAsRead,
   startConversationFromProperty,
   startConversationFromReservation,
+  unsendMessage,
 };
