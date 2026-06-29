@@ -98,6 +98,9 @@ const getConversationsForUser = async (userId) => {
       cc.created_at,
       cc.updated_at,
       p.property_name,
+      IF(cc.customer_id = ?, own.full_name, cust.full_name) AS other_user_name,
+      IF(cc.customer_id = ?, own.profile_image_url, cust.profile_image_url) AS other_user_avatar,
+      IF(cc.customer_id = ?, 'owner', 'customer') AS other_user_role,
       (
         SELECT cm.message_body
         FROM chat_messages cm
@@ -114,10 +117,12 @@ const getConversationsForUser = async (userId) => {
       ) AS unread_count
     FROM chat_conversations cc
     LEFT JOIN properties p ON p.id = cc.property_id
+    LEFT JOIN users cust ON cust.id = cc.customer_id
+    LEFT JOIN users own ON own.id = cc.owner_id
     WHERE cc.customer_id = ? OR cc.owner_id = ?
     ORDER BY cc.last_message_at DESC, cc.created_at DESC
     `,
-    [userId, userId, userId]
+    [userId, userId, userId, userId, userId, userId]
   );
   return rows;
 };
