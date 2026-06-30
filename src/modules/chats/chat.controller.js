@@ -78,6 +78,12 @@ const sendMessage = asyncHandler(async (req, res) => {
     attachment_url: imageUrl,
   });
 
+  // Emit real-time event to conversation room
+  const io = req.app.get("io");
+  if (io) {
+    io.to(`conversation_${conversationId}`).emit("new-message", message);
+  }
+
   return successResponse(res, "Message sent successfully", message, 201);
 });
 
@@ -125,6 +131,15 @@ const unsendMessage = asyncHandler(async (req, res) => {
     Number(messageId),
     req.user.id
   );
+
+  // Emit real-time event to conversation room
+  const io = req.app.get("io");
+  if (io) {
+    io.to(`conversation_${conversationId}`).emit("message-unsent", {
+      conversationId: Number(conversationId),
+      messageId: Number(messageId),
+    });
+  }
 
   return successResponse(res, "Message unsent successfully", result);
 });
