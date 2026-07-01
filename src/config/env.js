@@ -28,6 +28,14 @@ const parseList = (value, fallback = []) => {
 
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
+const normalizeOrigin = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  return String(value).trim().replace(/\/$/, "");
+};
+
 const env = {
   PORT: parseNumber(process.env.PORT, 5001),
   DB_HOST: getRequired("DB_HOST"),
@@ -41,7 +49,7 @@ const env = {
   REFRESH_TOKEN_COOKIE_SECURE: process.env.REFRESH_TOKEN_COOKIE_SECURE === "true",
   REFRESH_TOKEN_COOKIE_SAME_SITE: process.env.REFRESH_TOKEN_COOKIE_SAME_SITE || "lax",
   FRONTEND_URL: frontendUrl,
-  FRONTEND_URLS: parseList(process.env.FRONTEND_URLS, [frontendUrl]),
+  FRONTEND_URLS: parseList(process.env.FRONTEND_URLS, [frontendUrl]).map(normalizeOrigin),
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "",
   FACEBOOK_APP_ID: process.env.FACEBOOK_APP_ID || "",
   FACEBOOK_APP_SECRET: process.env.FACEBOOK_APP_SECRET || "",

@@ -11,9 +11,34 @@ const sanitizeMiddleware = require("./middleware/sanitize.middleware");
 
 const app = express();
 
+const allowedOrigins = new Set(env.FRONTEND_URLS);
+const isLoopbackOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?$/.test(origin || "");
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) {
+    return true;
+  }
+
+  const normalizedOrigin = origin.replace(/\/$/, "");
+  if (isLoopbackOrigin(normalizedOrigin)) {
+    return true;
+  }
+
+  if (allowedOrigins.has(normalizedOrigin)) {
+    return true;
+  }
+
+  const originWithoutPort = normalizedOrigin.replace(/:\d+$/, "");
+  if (allowedOrigins.has(originWithoutPort)) {
+    return true;
+  }
+
+  return false;
+};
+
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || env.FRONTEND_URLS.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
 
