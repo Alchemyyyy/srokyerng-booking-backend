@@ -36,12 +36,9 @@ const getDashboard = asyncHandler(async (req, res) => {
  * @access Owner only
  */
 const getProperties = asyncHandler(async (req, res) => {
-  // Import property service (when implemented)
-  // For now, return placeholder with instruction
-  return successResponse(res, "Owner properties endpoint ready", {
-    message: "Connect to propertyService.getOwnerProperties()",
-    nextSteps: "Implement propertyService.getOwnerProperties(ownerId)",
-  });
+  const propertyService = require("../properties/property.service");
+  const result = await propertyService.getMyProperty(req.user.id, req.query);
+  return res.status(result.status).json(result);
 });
 
 /**
@@ -76,11 +73,9 @@ const getReservations = asyncHandler(async (req, res) => {
  * @access Owner only
  */
 const getPayments = asyncHandler(async (req, res) => {
-  // Import payment service (when implemented)
-  return successResponse(res, "Owner payments endpoint ready", {
-    message: "Connect to paymentService.getOwnerPayments()",
-    nextSteps: "Implement paymentService.getOwnerPayments(ownerId)",
-  });
+  const paymentService = require("../payments/payment.service");
+  const payments = await paymentService.getOwnerPayments(req.user.id, req.query);
+  return successResponse(res, "Owner payments retrieved successfully", payments);
 });
 
 /**
@@ -89,11 +84,9 @@ const getPayments = asyncHandler(async (req, res) => {
  * @access Owner only
  */
 const getReviews = asyncHandler(async (req, res) => {
-  // Import review service (when implemented)
-  return successResponse(res, "Owner reviews endpoint ready", {
-    message: "Connect to reviewService.getOwnerReviews()",
-    nextSteps: "Implement reviewService.getOwnerReviews(ownerId)",
-  });
+  const reviewService = require("../reviews/review.service");
+  const reviews = await reviewService.getOwnerReviews(req.user.id);
+  return successResponse(res, "Owner reviews retrieved successfully", reviews);
 });
 
 const getPropertyCalendar = asyncHandler(async (req, res) => {

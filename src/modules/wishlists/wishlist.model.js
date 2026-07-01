@@ -51,6 +51,8 @@ const getMyWishlists = async (customerId) => {
 
       p.id AS property_id,
       p.property_name,
+      p.latitude,
+      p.longitude,
       city.name AS city,
       province.name AS province,
 

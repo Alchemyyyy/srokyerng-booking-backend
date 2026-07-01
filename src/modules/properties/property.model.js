@@ -24,6 +24,8 @@ const getAllApproved = async (filters = {}) => {
       p.property_name,
       p.description,
       p.number_of_floors,
+      p.latitude,
+      p.longitude,
 
       p.category_id,
       c.category_name,

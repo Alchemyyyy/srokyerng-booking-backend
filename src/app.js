@@ -5,6 +5,8 @@ const env = require("./config/env");
 
 const routes = require("./routes");
 const errorMiddleware = require("./middleware/error.middleware");
+const securityHeaders = require("./middleware/security.middleware");
+const sanitizeMiddleware = require("./middleware/sanitize.middleware");
 
 
 const app = express();
@@ -21,9 +23,11 @@ const corsOptions = {
 };
   
 app.use(cors(corsOptions));
+app.use(securityHeaders);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(sanitizeMiddleware);
 app.use(cookieParser());
 
 app.use("/uploads", express.static("uploads"));

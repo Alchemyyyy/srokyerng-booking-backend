@@ -16,15 +16,18 @@ const ensureUploadDir = (folder) => {
   return uploadDir;
 };
 
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+
 const createImageFileFilter = () => {
   return (_req, file, cb) => {
-    if (ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype) && ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
       return cb(null, true);
     }
 
     return cb(
       new Error(
-        `Invalid file type. Allowed types: ${ALLOWED_IMAGE_MIME_TYPES.join(", ")}`
+        `Invalid file type or extension. Allowed extensions: ${ALLOWED_IMAGE_EXTENSIONS.join(", ")}`
       )
     );
   };
@@ -126,14 +129,20 @@ const chatFileFilter = () => {
     "audio/x-m4a",
     "audio/m4a"
   ];
+  const ALLOWED_CHAT_EXTENSIONS = [
+    ".jpg", ".jpeg", ".png", ".webp",
+    ".webm", ".ogg", ".mp3", ".mpeg", ".wav", ".m4a"
+  ];
   return (_req, file, cb) => {
-    if (ALLOWED_CHAT_MIME_TYPES.includes(file.mimetype) || file.mimetype.startsWith("audio/")) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const isMimeAllowed = ALLOWED_CHAT_MIME_TYPES.includes(file.mimetype) || file.mimetype.startsWith("audio/");
+    if (isMimeAllowed && ALLOWED_CHAT_EXTENSIONS.includes(ext)) {
       return cb(null, true);
     }
 
     return cb(
       new Error(
-        "Invalid file type. Allowed types: images and audio files."
+        "Invalid file type or extension. Allowed: images and audio files."
       )
     );
   };
