@@ -3,6 +3,8 @@ const authController = require("./auth.controller");
 const authMiddleware = require("../../middleware/auth.middleware");
 const {
   loginRateLimit,
+  registerRateLimit,
+  refreshTokenRateLimit,
   forgotPasswordRateLimit,
   resetPasswordRateLimit,
   resendVerificationEmailRateLimit,
@@ -10,7 +12,7 @@ const {
 
 const router = express.Router();
 
-router.post("/register", authController.register);
+router.post("/register", registerRateLimit, authController.register);
 router.post("/login", loginRateLimit, authController.login);
 router.post("/google", loginRateLimit, authController.googleLogin);
 router.post("/facebook", loginRateLimit, authController.facebookLogin);
@@ -23,7 +25,7 @@ router.post(
   resendVerificationEmailRateLimit,
   authController.resendVerificationEmail
 );
-router.post("/refresh-token", authController.refreshToken);
+router.post("/refresh-token", refreshTokenRateLimit, authController.refreshToken);
 router.get("/me", authMiddleware, authController.getMe);
 router.get("/sessions", authMiddleware, authController.getSessions);
 router.delete("/sessions/:id", authMiddleware, authController.revokeSession);

@@ -92,4 +92,13 @@ router.get(
 
 router.get("/rooms/:roomId/availability-calendar", ownerController.getOwnerRoomCalendar);
 
+router.post(
+  "/rooms/:roomId/availability-blocks",
+  ownerController.createRoomAvailabilityBlock
+);
+router.delete(
+  "/rooms/:roomId/availability-blocks/:date",
+  ownerController.deleteRoomAvailabilityBlock
+);
+
 module.exports = router;

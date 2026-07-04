@@ -56,12 +56,23 @@ const checkAvailability = async (roomId, checkInDate, checkOutDate, excludeReser
   
   const [rows] = await pool.query(query, params);
   const bookedCount = rows[0].booked_count;
-  
+
+  const [blockRows] = await pool.query(
+    `SELECT COUNT(*) as block_count
+     FROM room_availability_blocks
+     WHERE room_id = ?
+       AND start_date < ?
+       AND end_date >= ?`,
+    [roomId, checkOutDate, checkInDate]
+  );
+  const isBlocked = blockRows[0].block_count > 0;
+
   return {
-    isAvailable: bookedCount < totalRooms,
-    availableRooms: totalRooms - bookedCount,
+    isAvailable: bookedCount < totalRooms && !isBlocked,
+    availableRooms: isBlocked ? 0 : totalRooms - bookedCount,
     bookedCount,
     totalRooms,
+    isBlocked,
   };
 };
 
@@ -115,7 +126,14 @@ const findReservationsByCustomer = async (customerId, filters = {}) => {
     SELECT r.*,
            rm.room_name,
            p.property_name,
-           p.id as property_id
+           p.id as property_id,
+           (
+             SELECT image_url
+             FROM property_images
+             WHERE property_id = p.id
+             AND is_cover = TRUE
+             LIMIT 1
+           ) AS cover_image
     FROM reservations r
     JOIN rooms rm ON r.room_id = rm.id
     JOIN properties p ON rm.property_id = p.id
@@ -286,13 +304,29 @@ const createReservationWithLock = async (data) => {
       [data.room_id, data.check_out_date, data.check_in_date]
     );
 
+    // Owner-blocked dates (maintenance/manual holds) are just as much a
+    // hard stop as an existing reservation — check them under the same lock.
+    const [blockRows] = await connection.query(
+      `SELECT COUNT(*) as block_count
+       FROM room_availability_blocks
+       WHERE room_id = ?
+         AND start_date < ?
+         AND end_date >= ?
+       FOR UPDATE`,
+      [data.room_id, data.check_out_date, data.check_in_date]
+    );
+
     const totalRooms = roomRows[0].total_rooms;
     const bookedCount = overlapRows[0].booked_count;
+    const isBlocked = blockRows[0].block_count > 0;
 
-    if (bookedCount >= totalRooms) {
+    if (bookedCount >= totalRooms || isBlocked) {
       await connection.rollback();
       connection.release();
-      return { success: false, error: "Room not available" };
+      return {
+        success: false,
+        error: isBlocked ? "Room is blocked by the owner for the selected dates" : "Room not available",
+      };
     }
 
     // Create reservation

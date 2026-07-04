@@ -41,7 +41,12 @@ router.get(
 router.get("/:propertyId/reviews", reviewController.getPropertyReviews);
 router.get("/:propertyId/amenities", amenityController.getPropertyAmenities);
 
-router.put("/:propertyId/amenities", amenityController.updatePropertyAmenities);
+router.put(
+  "/:propertyId/amenities",
+  authMiddleware,
+  roleMiddleware(role.OWNER),
+  amenityController.updatePropertyAmenities
+);
 router.get("/:id", propertyController.getDetail);
 
 router.get(

@@ -1,5 +1,14 @@
 const AppError = require("../../utils/appError");
 const chatModel = require("./chat.model");
+const signedFileUrl = require("../../utils/signedFileUrl");
+
+// Chat attachments are private to the two conversation participants, so
+// (like payment receipts) the URL is only ever handed out signed — see
+// signedFileUrl.js for why the signature itself is the authorization.
+const signAttachment = (message) =>
+  message && message.attachment_url
+    ? { ...message, attachment_url: signedFileUrl.sign(message.attachment_url) }
+    : message;
 
 const createConversation = async (userId, userRole, payload) => {
   const { property_id, reservation_id, initial_message } = payload;
@@ -127,7 +136,7 @@ const getMessages = async (conversationId, userId) => {
   }
 
   const messages = await chatModel.getMessagesByConversationId(conversationId);
-  return messages;
+  return messages.map(signAttachment);
 };
 
 const sendMessage = async (conversationId, userId, payload) => {
@@ -157,7 +166,8 @@ const sendMessage = async (conversationId, userId, payload) => {
   await chatModel.updateConversationLastMessage(conversationId);
 
   const messages = await chatModel.getMessagesByConversationId(conversationId);
-  return messages.find((m) => m.id === messageId) || messages[messages.length - 1];
+  const message = messages.find((m) => m.id === messageId) || messages[messages.length - 1];
+  return signAttachment(message);
 };
 
 const markAsRead = async (conversationId, userId) => {

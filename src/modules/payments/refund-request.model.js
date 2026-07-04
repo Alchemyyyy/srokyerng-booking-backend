@@ -5,6 +5,17 @@ const findRefundRequestById = async (id) => {
   return rows[0];
 };
 
+// Locks the refund request row for the duration of a transaction so
+// concurrent approve/reject calls on the same request serialize.
+// Must be called with a connection that has an open transaction.
+const lockRefundRequestById = async (connection, id) => {
+  const [rows] = await connection.query(
+    "SELECT * FROM refund_requests WHERE id = ? FOR UPDATE",
+    [id]
+  );
+  return rows[0];
+};
+
 const findRefundRequestsByPaymentId = async (paymentId) => {
   const [rows] = await pool.query(
     "SELECT * FROM refund_requests WHERE payment_id = ? ORDER BY requested_at DESC",
@@ -45,10 +56,10 @@ const createRefundRequest = async (paymentId, requestedBy, amount, reason) => {
   return result.insertId;
 };
 
-const updateRefundRequestStatus = async (id, status, handledBy, decisionNote) => {
-  const [result] = await pool.query(
-    `UPDATE refund_requests 
-     SET refund_status = ?, handled_by = ?, decision_note = ?, handled_at = NOW() 
+const updateRefundRequestStatus = async (id, status, handledBy, decisionNote, connection = pool) => {
+  const [result] = await connection.query(
+    `UPDATE refund_requests
+     SET refund_status = ?, handled_by = ?, decision_note = ?, handled_at = NOW()
      WHERE id = ?`,
     [status, handledBy, decisionNote, id]
   );
@@ -136,6 +147,7 @@ const getRefundRequestStats = async (startDate = null, endDate = null) => {
 
 module.exports = {
   findRefundRequestById,
+  lockRefundRequestById,
   findRefundRequestsByPaymentId,
   findRefundRequestsByUserId,
   findPendingRefundRequests,

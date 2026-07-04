@@ -132,6 +132,38 @@ const getOwnerRoomCalendar = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Block a single calendar day for a room (maintenance / manual hold).
+ * @route POST /api/owner/rooms/:roomId/availability-blocks
+ * @access Owner only
+ */
+const createRoomAvailabilityBlock = asyncHandler(async (req, res) => {
+  const { date, reason } = req.body;
+  const result = await calendarService.createRoomBlock(
+    req.params.roomId,
+    req.user.id,
+    date,
+    reason
+  );
+
+  return res.status(result.status).json(result);
+});
+
+/**
+ * Remove a blocked day for a room.
+ * @route DELETE /api/owner/rooms/:roomId/availability-blocks/:date
+ * @access Owner only
+ */
+const deleteRoomAvailabilityBlock = asyncHandler(async (req, res) => {
+  const result = await calendarService.removeRoomBlock(
+    req.params.roomId,
+    req.user.id,
+    req.params.date
+  );
+
+  return res.status(result.status).json(result);
+});
+
+/**
  * Deactivate (suspend) a property
  * @route PATCH /api/owner/properties/:id/deactivate
  * @access Owner only
@@ -216,6 +248,8 @@ module.exports = {
 
   getOwnerPropertyCalendar,
   getOwnerRoomCalendar,
+  createRoomAvailabilityBlock,
+  deleteRoomAvailabilityBlock,
   deactivateProperty,
   activateProperty,
 };

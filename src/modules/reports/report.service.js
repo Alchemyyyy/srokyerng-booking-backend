@@ -74,6 +74,15 @@ const getAllReports = async () => {
 };
 
 const updateStatus = async (reportId, status) => {
+  const { error } = validate.updateStatusSchema.validate({ status });
+  if (error) {
+    return {
+      result: false,
+      status: 400,
+      message: error.details[0].message,
+    };
+  }
+
   const report = await reportModel.getById(reportId);
 
   if (!report) {
@@ -94,6 +103,15 @@ const updateStatus = async (reportId, status) => {
 };
 
 const resolveReport = async (reportId, adminId, note) => {
+  const { error } = validate.resolveReportSchema.validate({ resolution_note: note });
+  if (error) {
+    return {
+      result: false,
+      status: 400,
+      message: error.details[0].message,
+    };
+  }
+
   const report = await reportModel.getById(reportId);
 
   if (!report) {

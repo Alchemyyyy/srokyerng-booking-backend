@@ -244,7 +244,12 @@ const uploadReceipt = asyncHandler(async (req, res) => {
     return errorResponse(res, "Invalid payment ID", 400);
   }
 
-  const payment = await paymentService.uploadReceipt(req.user.id, paymentId, req.file);
+  const payment = await paymentService.uploadReceipt(
+    req.user.id,
+    paymentId,
+    req.file,
+    req.body?.transaction_reference
+  );
 
   // Notify owner that a payment has been submitted (non-blocking)
   if (notificationService && notificationService.notifyUserSafely) {
@@ -464,82 +469,6 @@ const getMyRefundRequests = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET /api/admin/refund-requests
- * Admin only — list pending refund requests.
- */
-const getPendingRefundRequests = asyncHandler(async (req, res) => {
-  const { limit = 50 } = req.query;
-
-  const validatedLimit = Math.min(parseInt(limit) || 50, 100);
-
-  const refundRequests = await paymentService.getPendingRefundRequests(validatedLimit);
-
-  return successResponse(
-    res,
-    "Pending refund requests retrieved successfully",
-    refundRequests
-  );
-});
-
-/**
- * PATCH /api/admin/refund-requests/:id/approve
- * Admin only — approve a refund request.
- */
-const approveRefundRequest = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { decision_note } = req.body;
-
-  const schema = Joi.object({
-    decision_note: Joi.string().max(500).optional(),
-  });
-
-  const { error, value } = schema.validate({ decision_note });
-  if (error) {
-    const err = new Error(error.details[0].message);
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const validatedId = validateId(id);
-  const refundRequest = await paymentService.approveRefundRequest(
-    req.user.id,
-    validatedId,
-    value.decision_note || ""
-  );
-
-  return successResponse(res, "Refund request approved successfully", refundRequest);
-});
-
-/**
- * PATCH /api/admin/refund-requests/:id/reject
- * Admin only — reject a refund request.
- */
-const rejectRefundRequest = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { decision_note } = req.body;
-
-  const schema = Joi.object({
-    decision_note: Joi.string().max(500).optional(),
-  });
-
-  const { error, value } = schema.validate({ decision_note });
-  if (error) {
-    const err = new Error(error.details[0].message);
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const validatedId = validateId(id);
-  const refundRequest = await paymentService.rejectRefundRequest(
-    req.user.id,
-    validatedId,
-    value.decision_note || ""
-  );
-
-  return successResponse(res, "Refund request rejected successfully", refundRequest);
-});
-
-/**
  * GET /api/owner/refund-requests
  * Owner only — list refund requests for own properties.
  */
@@ -659,9 +588,6 @@ module.exports = {
   getOwnerPendingVerificationPayments,
   createRefundRequest,
   getMyRefundRequests,
-  getPendingRefundRequests,
-  approveRefundRequest,
-  rejectRefundRequest,
   getOwnerRefundRequestById,
   getOwnerRefundRequests,
   getOwnerPendingRefundRequests,

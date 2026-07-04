@@ -44,11 +44,6 @@ router.get("/payments", paymentController.getAllPayments);
 router.get("/payment-accounts", paymentController.getAdminOwnerPaymentAccounts);
 router.get("/payment-accounts/:id", paymentController.getAdminOwnerPaymentAccountById);
 
-// Refund request endpoints
-router.get("/refund-requests", paymentController.getPendingRefundRequests);
-router.patch("/refund-requests/:id/approve", paymentController.approveRefundRequest);
-router.patch("/refund-requests/:id/reject", paymentController.rejectRefundRequest);
-
 // Analytics endpoints
 router.get("/analytics/summary", analyticsController.getSummary);
 router.get("/analytics/users", analyticsController.getUsers);

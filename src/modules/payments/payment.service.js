@@ -1,10 +1,31 @@
 const path = require("path");
 const fs = require("fs");
+const pool = require("../../config/db");
 const paymentModel = require("./payment.model");
 const propertyModel = require("../properties/property.model");
 const { isValidTransition } = require("./payment.validation");
+const signedFileUrl = require("../../utils/signedFileUrl");
 
 // ─── Helpers ──────────────────────────────────────────────────────
+
+// Runs fn inside a DB transaction on a dedicated connection, committing on
+// success and rolling back on any thrown error. Used for payment/refund
+// status transitions so concurrent requests on the same row serialize
+// instead of racing (see lockPaymentById / lockRefundRequestById).
+const withTransaction = async (fn) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await fn(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
 
 const toSafePayment = (row) => ({
   id: row.id,
@@ -15,7 +36,7 @@ const toSafePayment = (row) => ({
   currency: row.currency,
   transaction_reference: row.transaction_reference,
   rejection_reason: row.rejection_reason,
-  receipt_image_url: row.receipt_image_url,
+  receipt_image_url: signedFileUrl.sign(row.receipt_image_url),
   payment_status: row.status_name,
   payment_method: row.method_name,
   payment_method_id: row.payment_method_id,
@@ -125,7 +146,7 @@ const createPayment = async (
 
 // ─── Upload Receipt ───────────────────────────────────────────────
 
-const uploadReceipt = async (customerId, paymentId, file) => {
+const uploadReceipt = async (customerId, paymentId, file, transactionReference) => {
   if (!file) throwError("No receipt file provided", 400);
 
   const payment = await paymentModel.findPaymentById(paymentId);
@@ -162,7 +183,15 @@ const uploadReceipt = async (customerId, paymentId, file) => {
   const submittedStatus = await paymentModel.findPaymentStatusByName("submitted");
   if (!submittedStatus) throwError("Payment statuses not seeded", 500);
 
-  await paymentModel.updateReceiptUrl(paymentId, receiptUrl, submittedStatus.id);
+  const trimmedReference =
+    typeof transactionReference === "string" ? transactionReference.trim().slice(0, 255) : "";
+
+  await paymentModel.updateReceiptUrl(
+    paymentId,
+    receiptUrl,
+    submittedStatus.id,
+    trimmedReference || null
+  );
 
   const updated = await paymentModel.findPaymentById(paymentId);
   return toSafePayment(updated);
@@ -432,51 +461,36 @@ const getPaymentById = async (paymentId, requestingUserId, requestingUserRole) =
 
 // ─── Owner Actions ───────────────────────────────────────────────
 
-const _ownerTransition = async (ownerId, paymentId, targetStatus, extraFields = {}) => {
-  const payment = await paymentModel.findPaymentById(paymentId);
-  if (!payment) throwError("Payment not found", 404);
-  if (payment.owner_id !== ownerId) {
-    throwError("You can only manage payments for your own properties", 403);
-  }
+// Locks the payment row, validates ownership + the status transition, applies
+// it, and returns the pre-update locked row (still useful for fields like
+// reservation_id that don't change).
+const _lockedTransition = (ownerId, paymentId, targetStatus, extraFields = {}) =>
+  withTransaction(async (connection) => {
+    const payment = await paymentModel.lockPaymentById(connection, paymentId);
+    if (!payment) throwError("Payment not found", 404);
+    if (payment.owner_id !== ownerId) {
+      throwError("You can only manage payments for your own properties", 403);
+    }
 
-  if (!isValidTransition(payment.status_name, targetStatus)) {
-    throwError(
-      `Cannot transition payment from '${payment.status_name}' to '${targetStatus}'`,
-      400
-    );
-  }
+    if (!isValidTransition(payment.status_name, targetStatus)) {
+      throwError(
+        `Cannot transition payment from '${payment.status_name}' to '${targetStatus}'`,
+        400
+      );
+    }
 
-  const statusRow = await paymentModel.findPaymentStatusByName(targetStatus);
-  if (!statusRow) throwError("Payment statuses not seeded", 500);
+    const statusRow = await paymentModel.findPaymentStatusByName(targetStatus);
+    if (!statusRow) throwError("Payment statuses not seeded", 500);
 
-  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, extraFields);
+    await paymentModel.updatePaymentStatus(payment.id, statusRow.id, extraFields, connection);
 
-  const updated = await paymentModel.findPaymentById(payment.id);
-  return toSafePayment(updated);
-};
+    return payment;
+  });
 
 const verifyPayment = async (ownerId, paymentId) => {
   const now = new Date();
 
-  // Get payment before transition to know the reservation_id
-  const payment = await paymentModel.findPaymentById(paymentId);
-  if (!payment) throwError("Payment not found", 404);
-  if (payment.owner_id !== ownerId) {
-    throwError("You can only manage payments for your own properties", 403);
-  }
-
-  if (!isValidTransition(payment.status_name, "paid")) {
-    throwError(
-      `Cannot transition payment from '${payment.status_name}' to 'paid'`,
-      400
-    );
-  }
-
-  const statusRow = await paymentModel.findPaymentStatusByName("paid");
-  if (!statusRow) throwError("Payment statuses not seeded", 500);
-
-  // Update payment status to paid
-  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
+  const lockedPayment = await _lockedTransition(ownerId, paymentId, "paid", {
     verified_by: ownerId,
     verified_at: now,
     paid_at: now,
@@ -485,38 +499,50 @@ const verifyPayment = async (ownerId, paymentId) => {
   // Update reservation status to confirmed
   const reservationModel = require("../reservations/reservation.model");
   await reservationModel.updateReservationStatus(
-    payment.reservation_id,
+    lockedPayment.reservation_id,
     "confirmed"
   );
 
-  const updated = await paymentModel.findPaymentById(payment.id);
+  const updated = await paymentModel.findPaymentById(paymentId);
   return toSafePayment(updated);
 };
 
 const rejectPayment = async (ownerId, paymentId, rejectionReason) => {
-  return _ownerTransition(ownerId, paymentId, "failed", {
+  const lockedPayment = await _lockedTransition(ownerId, paymentId, "failed", {
     verified_by: ownerId,
     verified_at: new Date(),
     rejection_reason: rejectionReason || null,
   });
+
+  // A rejected payment means the hold was never valid — free the room
+  // immediately instead of leaving it blocked until the 48h pending-expiry
+  // job runs.
+  const reservationModel = require("../reservations/reservation.model");
+  const reservation = await reservationModel.findReservationById(
+    lockedPayment.reservation_id
+  );
+  if (reservation && reservation.reservation_status === "pending") {
+    await reservationModel.updateReservationStatus(
+      lockedPayment.reservation_id,
+      "cancelled",
+      rejectionReason ? `Payment rejected: ${rejectionReason}` : "Payment rejected by owner"
+    );
+  }
+
+  const updated = await paymentModel.findPaymentById(paymentId);
+  return toSafePayment(updated);
 };
 
 const refundPayment = async (ownerId, paymentId) => {
-  // Get payment to check associated reservation
+  // Early check outside the transaction so an obviously invalid request
+  // (unknown payment, wrong owner, reservation not cancelled) doesn't need
+  // to open one at all.
   const payment = await paymentModel.findPaymentById(paymentId);
   if (!payment) throwError("Payment not found", 404);
   if (payment.owner_id !== ownerId) {
     throwError("You can only manage payments for your own properties", 403);
   }
 
-  if (!isValidTransition(payment.status_name, "refunded")) {
-    throwError(
-      `Cannot transition payment from '${payment.status_name}' to 'refunded'`,
-      400
-    );
-  }
-
-  // Verify the reservation is cancelled before refunding
   const reservationModel = require("../reservations/reservation.model");
   const reservation = await reservationModel.findReservationById(payment.reservation_id);
   if (!reservation) throwError("Associated reservation not found", 404);
@@ -524,15 +550,12 @@ const refundPayment = async (ownerId, paymentId) => {
     throwError("Can only refund payments for cancelled reservations", 400);
   }
 
-  const statusRow = await paymentModel.findPaymentStatusByName("refunded");
-  if (!statusRow) throwError("Payment statuses not seeded", 500);
-
-  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
+  await _lockedTransition(ownerId, paymentId, "refunded", {
     verified_by: ownerId,
     verified_at: new Date(),
   });
 
-  const updated = await paymentModel.findPaymentById(payment.id);
+  const updated = await paymentModel.findPaymentById(paymentId);
   return toSafePayment(updated);
 };
 
@@ -558,6 +581,10 @@ const createRefundRequest = async (paymentId, requestedBy, amount, reason) => {
 
   const payment = await paymentModel.findPaymentById(paymentId);
   if (!payment) throwError("Payment not found", 404);
+
+  if (payment.customer_id !== requestedBy) {
+    throwError("You can only request a refund for your own payments", 403);
+  }
 
   if (payment.status_name !== "paid") {
     throwError("Only paid payments can be refunded", 400);
@@ -643,26 +670,6 @@ const createRefundRequestByReservation = async (reservationId, customerId, amoun
   };
 };
 
-const getRefundRequest = async (refundRequestId) => {
-  const refundRequestModel = require("./refund-request.model");
-
-  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
-  if (!refundRequest) throwError("Refund request not found", 404);
-
-  return {
-    id: refundRequest.id,
-    payment_id: refundRequest.payment_id,
-    requested_by: refundRequest.requested_by,
-    handled_by: refundRequest.handled_by,
-    amount: refundRequest.amount,
-    reason: refundRequest.reason,
-    refund_status: refundRequest.refund_status,
-    decision_note: refundRequest.decision_note,
-    requested_at: refundRequest.requested_at,
-    handled_at: refundRequest.handled_at,
-  };
-};
-
 const getMyRefundRequests = async (userId, limit = 50) => {
   const refundRequestModel = require("./refund-request.model");
 
@@ -680,95 +687,6 @@ const getMyRefundRequests = async (userId, limit = 50) => {
     requested_at: r.requested_at,
     handled_at: r.handled_at,
   }));
-};
-
-const getPendingRefundRequests = async (limit = 50) => {
-  const refundRequestModel = require("./refund-request.model");
-
-  const refundRequests = await refundRequestModel.findPendingRefundRequests(limit);
-
-  return refundRequests.map((r) => ({
-    id: r.id,
-    payment_id: r.payment_id,
-    requested_by: r.requested_by,
-    amount: r.amount,
-    reason: r.reason,
-    refund_status: r.refund_status,
-    requested_at: r.requested_at,
-  }));
-};
-
-const approveRefundRequest = async (adminId, refundRequestId, decisionNote = "") => {
-  const refundRequestModel = require("./refund-request.model");
-
-  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
-  if (!refundRequest) throwError("Refund request not found", 404);
-
-  if (refundRequest.refund_status !== "requested") {
-    throwError("Only pending refund requests can be approved", 400);
-  }
-
-  // Update refund request status
-  await refundRequestModel.updateRefundRequestStatus(
-    refundRequestId,
-    "approved",
-    adminId,
-    decisionNote
-  );
-
-  // Process the actual refund by updating payment status
-  const payment = await paymentModel.findPaymentById(refundRequest.payment_id);
-  if (payment.status_name !== "paid") {
-    throwError("Payment is no longer in paid status", 400);
-  }
-
-  // Transition payment to refunded
-  const statusRow = await paymentModel.findPaymentStatusByName("refunded");
-  if (!statusRow) throwError("Payment statuses not seeded", 500);
-
-  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
-    verified_by: adminId,
-    verified_at: new Date(),
-  });
-
-  const updatedRefundRequest =
-    await refundRequestModel.findRefundRequestById(refundRequestId);
-  return {
-    id: updatedRefundRequest.id,
-    payment_id: updatedRefundRequest.payment_id,
-    refund_status: updatedRefundRequest.refund_status,
-    handled_by: updatedRefundRequest.handled_by,
-    handled_at: updatedRefundRequest.handled_at,
-  };
-};
-
-const rejectRefundRequest = async (adminId, refundRequestId, decisionNote = "") => {
-  const refundRequestModel = require("./refund-request.model");
-
-  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
-  if (!refundRequest) throwError("Refund request not found", 404);
-
-  if (refundRequest.refund_status !== "requested") {
-    throwError("Only pending refund requests can be rejected", 400);
-  }
-
-  // Update refund request status
-  await refundRequestModel.updateRefundRequestStatus(
-    refundRequestId,
-    "rejected",
-    adminId,
-    decisionNote
-  );
-
-  const updatedRefundRequest =
-    await refundRequestModel.findRefundRequestById(refundRequestId);
-  return {
-    id: updatedRefundRequest.id,
-    payment_id: updatedRefundRequest.payment_id,
-    refund_status: updatedRefundRequest.refund_status,
-    handled_by: updatedRefundRequest.handled_by,
-    handled_at: updatedRefundRequest.handled_at,
-  };
 };
 
 const getOwnerRefundRequestById = async (ownerId, refundRequestId) => {
@@ -862,38 +780,41 @@ const getOwnerPendingRefundRequests = async (ownerId, limit = 50) => {
 const approveOwnerRefundRequest = async (ownerId, refundRequestId = "") => {
   const refundRequestModel = require("./refund-request.model");
 
-  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
-  if (!refundRequest) throwError("Refund request not found", 404);
+  await withTransaction(async (connection) => {
+    const refundRequest = await refundRequestModel.lockRefundRequestById(
+      connection,
+      refundRequestId
+    );
+    if (!refundRequest) throwError("Refund request not found", 404);
+    if (refundRequest.refund_status !== "requested") {
+      throwError("Only pending refund requests can be approved", 400);
+    }
 
-  if (refundRequest.refund_status !== "requested") {
-    throwError("Only pending refund requests can be approved", 400);
-  }
+    // Verify the refund request belongs to the owner's property
+    const payment = await paymentModel.lockPaymentById(connection, refundRequest.payment_id);
+    if (!payment) throwError("Payment not found", 404);
+    if (payment.owner_id !== ownerId) {
+      throwError("You can only manage refund requests for your own properties", 403);
+    }
+    if (payment.status_name !== "paid") {
+      throwError("Payment is no longer in paid status", 400);
+    }
 
-  // Verify the refund request belongs to the owner's property
-  const payment = await paymentModel.findPaymentById(refundRequest.payment_id);
-  if (!payment) throwError("Payment not found", 404);
-  if (payment.owner_id !== ownerId) {
-    throwError("You can only manage refund requests for your own properties", 403);
-  }
+    await refundRequestModel.updateRefundRequestStatus(
+      refundRequestId,
+      "approved",
+      ownerId,
+      "",
+      connection
+    );
 
-  if (payment.status_name !== "paid") {
-    throwError("Payment is no longer in paid status", 400);
-  }
+    const statusRow = await paymentModel.findPaymentStatusByName("refunded");
+    if (!statusRow) throwError("Payment statuses not seeded", 500);
 
-  // Update refund request status
-  await refundRequestModel.updateRefundRequestStatus(
-    refundRequestId,
-    "approved",
-    ownerId
-  );
-
-  // Transition payment to refunded
-  const statusRow = await paymentModel.findPaymentStatusByName("refunded");
-  if (!statusRow) throwError("Payment statuses not seeded", 500);
-
-  await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
-    verified_by: ownerId,
-    verified_at: new Date(),
+    await paymentModel.updatePaymentStatus(payment.id, statusRow.id, {
+      verified_by: ownerId,
+      verified_at: new Date(),
+    }, connection);
   });
 
   const updatedRefundRequest =
@@ -910,27 +831,31 @@ const approveOwnerRefundRequest = async (ownerId, refundRequestId = "") => {
 const rejectOwnerRefundRequest = async (ownerId, refundRequestId, decisionNote = "") => {
   const refundRequestModel = require("./refund-request.model");
 
-  const refundRequest = await refundRequestModel.findRefundRequestById(refundRequestId);
-  if (!refundRequest) throwError("Refund request not found", 404);
+  await withTransaction(async (connection) => {
+    const refundRequest = await refundRequestModel.lockRefundRequestById(
+      connection,
+      refundRequestId
+    );
+    if (!refundRequest) throwError("Refund request not found", 404);
+    if (refundRequest.refund_status !== "requested") {
+      throwError("Only pending refund requests can be rejected", 400);
+    }
 
-  if (refundRequest.refund_status !== "requested") {
-    throwError("Only pending refund requests can be rejected", 400);
-  }
+    // Verify the refund request belongs to the owner's property
+    const payment = await paymentModel.lockPaymentById(connection, refundRequest.payment_id);
+    if (!payment) throwError("Payment not found", 404);
+    if (payment.owner_id !== ownerId) {
+      throwError("You can only manage refund requests for your own properties", 403);
+    }
 
-  // Verify the refund request belongs to the owner's property
-  const payment = await paymentModel.findPaymentById(refundRequest.payment_id);
-  if (!payment) throwError("Payment not found", 404);
-  if (payment.owner_id !== ownerId) {
-    throwError("You can only manage refund requests for your own properties", 403);
-  }
-
-  // Update refund request status
-  await refundRequestModel.updateRefundRequestStatus(
-    refundRequestId,
-    "rejected",
-    ownerId,
-    decisionNote
-  );
+    await refundRequestModel.updateRefundRequestStatus(
+      refundRequestId,
+      "rejected",
+      ownerId,
+      decisionNote,
+      connection
+    );
+  });
 
   const updatedRefundRequest =
     await refundRequestModel.findRefundRequestById(refundRequestId);
@@ -967,11 +892,7 @@ module.exports = {
   getOwnerPaymentsPendingVerification,
   createRefundRequest,
   createRefundRequestByReservation,
-  getRefundRequest,
   getMyRefundRequests,
-  getPendingRefundRequests,
-  approveRefundRequest,
-  rejectRefundRequest,
   getOwnerRefundRequestById,
   getOwnerRefundRequests,
   getOwnerPendingRefundRequests,

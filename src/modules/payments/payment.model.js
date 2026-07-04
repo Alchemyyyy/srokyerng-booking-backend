@@ -358,6 +358,21 @@ const findPaymentById = async (paymentId) => {
   return rows[0];
 };
 
+// Locks the payment row for the duration of a transaction so concurrent
+// verify/reject/refund calls on the same payment serialize instead of racing.
+// Must be called with a connection that has an open transaction.
+const lockPaymentById = async (connection, paymentId) => {
+  const [rows] = await connection.query(
+    `SELECT pay.*, ps.status_name
+     FROM payments pay
+     JOIN payment_statuses ps ON ps.id = pay.payment_status_id
+     WHERE pay.id = ?
+     FOR UPDATE`,
+    [paymentId]
+  );
+  return rows[0];
+};
+
 const findPaymentsByCustomer = async (customerId, filters = {}) => {
   let query = `${PAYMENT_SELECT} WHERE pay.customer_id = ?`;
   const params = [customerId];
@@ -416,7 +431,7 @@ const findAllPayments = async (filters = {}) => {
   return rows;
 };
 
-const updatePaymentStatus = async (paymentId, statusId, extraFields = {}) => {
+const updatePaymentStatus = async (paymentId, statusId, extraFields = {}, connection = pool) => {
   const sets = ["payment_status_id = ?"];
   const params = [statusId];
 
@@ -443,25 +458,27 @@ const updatePaymentStatus = async (paymentId, statusId, extraFields = {}) => {
 
   params.push(paymentId);
 
-  await pool.query(
+  await connection.query(
     `UPDATE payments SET ${sets.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
     params
   );
 };
 
-const updateReceiptUrl = async (paymentId, receiptImageUrl, statusId) => {
+const updateReceiptUrl = async (paymentId, receiptImageUrl, statusId, transactionReference = null) => {
   await pool.query(
     `UPDATE payments
      SET receipt_image_url = ?,
          payment_status_id = ?,
+         transaction_reference = COALESCE(?, transaction_reference),
          updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
-    [receiptImageUrl, statusId, paymentId]
+    [receiptImageUrl, statusId, transactionReference, paymentId]
   );
 };
 
 module.exports = {
   findReservationById,
+  lockPaymentById,
   findPaymentMethodById,
   findOwnerPaymentAccountById,
   findOwnerPaymentAccountsByOwnerId,

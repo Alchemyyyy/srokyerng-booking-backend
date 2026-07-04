@@ -29,20 +29,33 @@ const getRoomCalendar = async (roomId, startDate, endDate) => {
     endDate
   );
 
-  const unavailableDates = [];
+  const blocks = await calendarModel.getRoomBlocks(roomId, startDate, endDate);
+  const blockedDates = [...new Set(blocks.map((b) => dayjs(b.start_date).format("YYYY-MM-DD")))];
+
+  const totalRooms = room.total_rooms || 1;
+
+  // Count how many reservations occupy each date, since a room type can
+  // have multiple bookable units (total_rooms). A date is only fully
+  // unavailable once bookings for it reach that count.
+  const bookedCountByDate = {};
 
   reservations.forEach((reservation) => {
-    unavailableDates.push(
-      ...getDatesBetween(reservation.check_in_date, reservation.check_out_date)
-    );
+    getDatesBetween(
+      reservation.check_in_date,
+      reservation.check_out_date
+    ).forEach((date) => {
+      bookedCountByDate[date] = (bookedCountByDate[date] || 0) + 1;
+    });
   });
-
-  const uniqueUnavailableDates = [...new Set(unavailableDates)];
 
   const allDates = getDatesBetween(startDate, endDate);
 
+  const unavailableDates = allDates.filter(
+    (date) => (bookedCountByDate[date] || 0) >= totalRooms || blockedDates.includes(date)
+  );
+
   const availableDates = allDates.filter(
-    (date) => !uniqueUnavailableDates.includes(date)
+    (date) => (bookedCountByDate[date] || 0) < totalRooms && !blockedDates.includes(date)
   );
 
   return {
@@ -51,7 +64,8 @@ const getRoomCalendar = async (roomId, startDate, endDate) => {
     data: {
       room_id: roomId,
       available_dates: availableDates,
-      unavailable_dates: uniqueUnavailableDates,
+      unavailable_dates: unavailableDates,
+      blocked_dates: blockedDates,
     },
   };
 };
@@ -73,10 +87,16 @@ const getPropertyCalendar = async (propertyId, startDate, endDate) => {
     endDate
   );
 
+  const blocks = await calendarModel.getPropertyBlocks(propertyId, startDate, endDate);
+  const blockedDates = [...new Set(blocks.map((b) => dayjs(b.start_date).format("YYYY-MM-DD")))];
+
   return {
     result: true,
     status: 200,
-    data: reservations,
+    data: {
+      reservations,
+      blocked_dates: blockedDates,
+    },
   };
 };
 
@@ -108,9 +128,46 @@ const getOwnerRoomCalendar = async (roomId, ownerId, startDate, endDate) => {
   return getRoomCalendar(roomId, startDate, endDate);
 };
 
+const createRoomBlock = async (roomId, ownerId, date, reason) => {
+  const room = await calendarModel.getOwnerRoom(roomId, ownerId);
+  if (!room) {
+    return { result: false, status: 403, message: "Room not found" };
+  }
+
+  const existing = await calendarModel.getRoomBlockByDate(roomId, date);
+  if (existing) {
+    // Already blocked — idempotent, just hand back the existing block.
+    return { result: true, status: 200, data: existing };
+  }
+
+  const insertId = await calendarModel.insertRoomBlock(roomId, ownerId, date, reason);
+  return {
+    result: true,
+    status: 201,
+    data: { id: insertId, room_id: Number(roomId), start_date: date, end_date: date, reason: reason || null },
+  };
+};
+
+const removeRoomBlock = async (roomId, ownerId, date) => {
+  const room = await calendarModel.getOwnerRoom(roomId, ownerId);
+  if (!room) {
+    return { result: false, status: 403, message: "Room not found" };
+  }
+
+  const existing = await calendarModel.getRoomBlockByDate(roomId, date);
+  if (!existing) {
+    return { result: false, status: 404, message: "Block not found" };
+  }
+
+  await calendarModel.deleteRoomBlockById(existing.id);
+  return { result: true, status: 200, message: "Block removed" };
+};
+
 module.exports = {
   getRoomCalendar,
   getPropertyCalendar,
   getOwnerPropertyCalendar,
   getOwnerRoomCalendar,
+  createRoomBlock,
+  removeRoomBlock,
 };

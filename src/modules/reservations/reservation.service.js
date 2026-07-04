@@ -70,7 +70,9 @@ const createReservation = async (customerId, reservationData) => {
 
   if (!availability.isAvailable) {
     const error = new Error(
-      `Room is not available. Only ${availability.availableRooms} of ${availability.totalRooms} rooms available`
+      availability.isBlocked
+        ? "This room is unavailable for the selected dates."
+        : `Room is not available. Only ${availability.availableRooms} of ${availability.totalRooms} rooms available`
     );
     error.statusCode = 409;
     throw error;
@@ -90,7 +92,9 @@ const createReservation = async (customerId, reservationData) => {
   });
 
   if (!lockResult.success) {
-    const error = new Error("Room became unavailable during booking process. Please try again.");
+    const error = new Error(
+      lockResult.error || "Room became unavailable during booking process. Please try again."
+    );
     error.statusCode = 409;
     throw error;
   }

@@ -135,7 +135,7 @@ const chatFileFilter = () => {
   ];
   return (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const isMimeAllowed = ALLOWED_CHAT_MIME_TYPES.includes(file.mimetype) || file.mimetype.startsWith("audio/");
+    const isMimeAllowed = ALLOWED_CHAT_MIME_TYPES.includes(file.mimetype);
     if (isMimeAllowed && ALLOWED_CHAT_EXTENSIONS.includes(ext)) {
       return cb(null, true);
     }

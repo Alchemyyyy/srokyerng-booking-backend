@@ -30,7 +30,12 @@ const updateStatusSchema = Joi.object({
     .required(),
 });
 
+const resolveReportSchema = Joi.object({
+  resolution_note: Joi.string().trim().min(1).max(1000).required(),
+});
+
 module.exports = {
   createReportSchema,
   updateStatusSchema,
+  resolveReportSchema,
 };

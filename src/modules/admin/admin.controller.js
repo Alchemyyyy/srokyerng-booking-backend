@@ -16,19 +16,6 @@ const getAllReservations = asyncHandler(async (req, res) => {
   return successResponse(res, "All reservations retrieved successfully", reservations);
 });
 
-const updateReservationStatus = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-
-  const reservation = await reservationService.updateReservationStatusByAdmin(
-    parseInt(id),
-    status,
-    req.user.id
-  );
-
-  return successResponse(res, "Reservation status updated successfully", reservation);
-});
-
 const getAll = asyncHandler(async (req, res) => {
   const result = await propertyService.getAll(req.query);
 
@@ -142,7 +129,6 @@ const rejectPropertyUpdateRequest = asyncHandler(async (req, res) => {
 
 module.exports = {
   getAllReservations,
-  updateReservationStatus,
   getAll,
   updateStatusProperty,
   getAllReports,

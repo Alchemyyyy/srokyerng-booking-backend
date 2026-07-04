@@ -60,6 +60,29 @@ const env = {
   SMTP_PASSWORD: process.env.SMTP_PASSWORD || "",
   SMTP_FROM: process.env.SMTP_FROM || "",
   SMTP_SECURE: process.env.SMTP_SECURE === "true",
+  NODE_ENV: process.env.NODE_ENV || "development",
 };
+
+// These two are easy to get right in dev and forget to harden before a real
+// deploy, so fail loudly in production and just warn otherwise.
+const isProduction = env.NODE_ENV === "production";
+const weakJwtSecret = env.JWT_SECRET.length < 32;
+const insecureRefreshCookie = !env.REFRESH_TOKEN_COOKIE_SECURE;
+
+if (weakJwtSecret) {
+  const message = `JWT_SECRET is only ${env.JWT_SECRET.length} characters long — use a long, random value (32+ chars, e.g. \`openssl rand -hex 32\`).`;
+  if (isProduction) throw new Error(message);
+  console.warn(`[env] Warning: ${message}`);
+}
+
+if (insecureRefreshCookie && isProduction) {
+  throw new Error(
+    "REFRESH_TOKEN_COOKIE_SECURE must be \"true\" in production (refresh-token cookie must be HTTPS-only)."
+  );
+} else if (insecureRefreshCookie) {
+  console.warn(
+    "[env] Warning: REFRESH_TOKEN_COOKIE_SECURE is false — fine for local HTTP dev, but must be \"true\" before any production/HTTPS deploy."
+  );
+}
 
 module.exports = env;

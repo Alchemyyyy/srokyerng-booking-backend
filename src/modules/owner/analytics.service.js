@@ -199,6 +199,7 @@ const getTopProperties = async (
   const formatted = properties.map((p) => ({
     property_id: p.id,
     property_name: p.property_name,
+    status: p.status,
     reservation_count: p.reservation_count,
     total_revenue: parseFloat(p.total_revenue || 0),
     avg_rating: parseFloat(p.avg_rating || 0).toFixed(2),

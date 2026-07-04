@@ -148,8 +148,17 @@ const isValidRow = (row) => {
   return Array.isArray(row) && row.length > 0;
 };
 
+const rejectUpdateRequestSchema = Joi.object({
+  reason: Joi.string().trim().min(1).max(500).required().messages({
+    "any.required": "Rejection reason is required",
+    "string.empty": "Rejection reason cannot be empty",
+    "string.max": "Rejection reason cannot exceed 500 characters",
+  }),
+});
+
 module.exports = {
   createPropertySchema,
   updatePropertySchema,
+  rejectUpdateRequestSchema,
   isValidRow,
 };

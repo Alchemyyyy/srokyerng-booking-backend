@@ -8,6 +8,7 @@ const notificationService = require("../notifications/notification.service");
 const {
   createPropertySchema,
   updatePropertySchema,
+  rejectUpdateRequestSchema,
   isValidRow,
 } = require("./property.validation");
 
@@ -818,6 +819,15 @@ const approvePropertyUpdateRequest = async (requestId, adminId) => {
 };
 
 const rejectPropertyUpdateRequest = async (requestId, adminId, reason) => {
+  const { error } = rejectUpdateRequestSchema.validate({ reason });
+  if (error) {
+    return {
+      result: false,
+      message: error.details[0].message,
+      status: 400,
+    };
+  }
+
   await property.rejectUpdateRequest(requestId, adminId, reason);
 
   return {

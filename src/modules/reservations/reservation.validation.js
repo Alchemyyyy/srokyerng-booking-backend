@@ -92,6 +92,19 @@ const validateStatusFilter = (status) => {
   return null;
 };
 
+const validateCancellationReason = (reason) => {
+  if (reason === undefined || reason === null || reason === "") {
+    return { error: null };
+  }
+  if (typeof reason !== "string") {
+    return { error: "Cancellation reason must be a string" };
+  }
+  if (reason.trim().length > 500) {
+    return { error: "Cancellation reason cannot exceed 500 characters" };
+  }
+  return { error: null };
+};
+
 const validateAvailabilityQuery = (query) => {
   const { room_id, check_in_date, check_out_date } = query;
 
@@ -129,6 +142,7 @@ module.exports = {
   validateCreateReservation,
   validateStatusUpdate,
   validateCancelReservation,
+  validateCancellationReason,
   normalizeReservationData,
   validateId,
   validateStatusFilter,

@@ -9,10 +9,26 @@ const createRateLimitHandler = (message) => {
 
 const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+  limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
   handler: createRateLimitHandler("Too many login attempts. Please try again later"),
+});
+
+const registerRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createRateLimitHandler("Too many registration attempts. Please try again later"),
+});
+
+const refreshTokenRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createRateLimitHandler("Too many token refresh attempts. Please try again later"),
 });
 
 const forgotPasswordRateLimit = rateLimit({
@@ -47,6 +63,8 @@ const resendVerificationEmailRateLimit = rateLimit({
 
 module.exports = {
   loginRateLimit,
+  registerRateLimit,
+  refreshTokenRateLimit,
   forgotPasswordRateLimit,
   resetPasswordRateLimit,
   resendVerificationEmailRateLimit,

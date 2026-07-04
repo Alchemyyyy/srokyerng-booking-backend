@@ -8,6 +8,7 @@ const {
   validateCreateReservation,
   normalizeReservationData,
   validateStatusUpdate,
+  validateCancellationReason,
   validateId,
   validateStatusFilter,
 } = require("./reservation.validation");
@@ -98,6 +99,11 @@ const getReservationById = asyncHandler(async (req, res) => {
 const cancelReservation = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { cancellation_reason } = req.body;
+
+  const reasonValidation = validateCancellationReason(cancellation_reason);
+  if (reasonValidation.error) {
+    return errorResponse(res, reasonValidation.error, 400);
+  }
 
   const validatedId = validateId(id);
 
