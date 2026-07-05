@@ -32,6 +32,7 @@ const toSafeUser = (user) => {
     profile_image_url: user.profile_image_url,
     last_login: user.last_login,
     email_verified_at: user.email_verified_at,
+    google_linked: Boolean(user.google_id),
   };
 };
 
@@ -199,7 +200,14 @@ const verifyGoogleCredential = async (credential) => {
     throw error;
   }
 
+  if (!profile.sub) {
+    const error = new Error("Google credential is missing a subject id");
+    error.statusCode = 400;
+    throw error;
+  }
+
   return {
+    googleId: profile.sub,
     email: String(profile.email).toLowerCase(),
     fullName: profile.name || profile.email,
     profileImageUrl: profile.picture || null,
@@ -330,6 +338,44 @@ const googleLogin = async ({ credential, role }, metadata = {}) => {
 const facebookLogin = async ({ access_token, role }, metadata = {}) => {
   const facebookProfile = await verifyFacebookAccessToken(access_token);
   return socialLogin({ profile: facebookProfile, role }, metadata);
+};
+
+const linkGoogleAccount = async (userId, credential) => {
+  const googleProfile = await verifyGoogleCredential(credential);
+  const currentUser = await authModel.findUserById(userId);
+
+  if (!currentUser) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (googleProfile.email !== String(currentUser.email).toLowerCase()) {
+    const error = new Error(
+      "This Google account's email does not match your account email."
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const existingLink = await authModel.findUserByGoogleId(googleProfile.googleId);
+  if (existingLink && existingLink.id !== userId) {
+    const error = new Error("This Google account is already linked to another user.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  await authModel.linkGoogleId(userId, googleProfile.googleId);
+  if (!currentUser.email_verified_at) {
+    await authModel.markEmailAsVerified(userId);
+  }
+
+  return getCurrentUser(userId);
+};
+
+const unlinkGoogleAccount = async (userId) => {
+  await authModel.unlinkGoogleId(userId);
+  return getCurrentUser(userId);
 };
 
 const getCurrentUser = async (userId) => {
@@ -536,6 +582,8 @@ module.exports = {
   login,
   googleLogin,
   facebookLogin,
+  linkGoogleAccount,
+  unlinkGoogleAccount,
   getCurrentUser,
   verifyEmail,
   resendVerificationEmail,

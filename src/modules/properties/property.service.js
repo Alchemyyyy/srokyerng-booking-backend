@@ -405,6 +405,9 @@ const getMyPropertyById = async (property_id, owner_id) => {
 
     number_of_floors: p.number_of_floors,
 
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+
     category: {
       category_id: p.category_id,
       category_name: p.category_name,

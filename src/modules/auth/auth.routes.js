@@ -16,6 +16,8 @@ router.post("/register", registerRateLimit, authController.register);
 router.post("/login", loginRateLimit, authController.login);
 router.post("/google", loginRateLimit, authController.googleLogin);
 router.post("/facebook", loginRateLimit, authController.facebookLogin);
+router.post("/google/link", authMiddleware, authController.linkGoogleAccount);
+router.delete("/google/link", authMiddleware, authController.unlinkGoogleAccount);
 router.post("/forgot-password", forgotPasswordRateLimit, authController.forgotPassword);
 router.post("/reset-password", resetPasswordRateLimit, authController.resetPassword);
 router.post("/verify-email", authController.verifyEmail);

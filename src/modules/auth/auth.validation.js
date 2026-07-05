@@ -88,6 +88,13 @@ const facebookLoginSchema = Joi.object({
     }),
 });
 
+const linkGoogleAccountSchema = Joi.object({
+  credential: Joi.string().trim().required().messages({
+    "any.required": "Google credential is required",
+    "string.empty": "Google credential is required",
+  }),
+});
+
 const forgotPasswordSchema = Joi.object({
   email: Joi.string().trim().lowercase().email().required().messages({
     "any.required": "Email is required",
@@ -146,6 +153,11 @@ const normalizeFacebookLoginBody = (body = {}) => {
   return value;
 };
 
+const normalizeLinkGoogleAccountBody = (body = {}) => {
+  const { value } = linkGoogleAccountSchema.validate(body, validationOptions);
+  return value;
+};
+
 const normalizeForgotPasswordBody = (body = {}) => {
   const { value } = forgotPasswordSchema.validate(body, validationOptions);
   return value;
@@ -186,6 +198,11 @@ const validateFacebookLogin = (body) => {
   return formatErrors(error);
 };
 
+const validateLinkGoogleAccount = (body) => {
+  const { error } = linkGoogleAccountSchema.validate(body, validationOptions);
+  return formatErrors(error);
+};
+
 const validateForgotPassword = (body) => {
   const { error } = forgotPasswordSchema.validate(body, validationOptions);
   return formatErrors(error);
@@ -211,6 +228,7 @@ module.exports = {
   validateLogin,
   validateGoogleLogin,
   validateFacebookLogin,
+  validateLinkGoogleAccount,
   validateForgotPassword,
   validateResetPassword,
   validateRefreshToken,
@@ -219,6 +237,7 @@ module.exports = {
   normalizeLoginBody,
   normalizeGoogleLoginBody,
   normalizeFacebookLoginBody,
+  normalizeLinkGoogleAccountBody,
   normalizeForgotPasswordBody,
   normalizeResetPasswordBody,
   normalizeRefreshTokenBody,

@@ -662,6 +662,9 @@ const getMyOwnPropertyById = async (property_id, owner_id) => {
       p.number_of_floors,
       p.rejection_reason,
 
+      p.created_at,
+      p.updated_at,
+
       ps.id AS status_id,
       ps.status_name,
 

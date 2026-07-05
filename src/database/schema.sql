@@ -28,6 +28,7 @@ CREATE TABLE users (
   address TEXT,
   last_login TIMESTAMP NULL,
   email_verified_at TIMESTAMP NULL,
+  google_id VARCHAR(255) NULL UNIQUE COMMENT 'Google account subject id (sub claim) linked to this user, if any',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

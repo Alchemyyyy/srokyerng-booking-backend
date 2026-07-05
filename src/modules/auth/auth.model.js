@@ -36,7 +36,7 @@ const findUserByEmail = async (email) => {
 
 const findUserById = async (userId) => {
   const [rows] = await pool.query(
-    `SELECT 
+    `SELECT
       users.id,
       users.full_name,
       users.email,
@@ -44,6 +44,7 @@ const findUserById = async (userId) => {
       users.profile_image_url,
       users.last_login,
       users.email_verified_at,
+      users.google_id,
       roles.role_name,
       account_statuses.status_name
      FROM users
@@ -55,6 +56,28 @@ const findUserById = async (userId) => {
   );
 
   return rows[0];
+};
+
+const findUserByGoogleId = async (googleId) => {
+  const [rows] = await pool.query(
+    "SELECT id FROM users WHERE google_id = ? LIMIT 1",
+    [googleId]
+  );
+
+  return rows[0];
+};
+
+const linkGoogleId = async (userId, googleId) => {
+  await pool.query("UPDATE users SET google_id = ? WHERE id = ?", [
+    googleId,
+    userId,
+  ]);
+};
+
+const unlinkGoogleId = async (userId) => {
+  await pool.query("UPDATE users SET google_id = NULL WHERE id = ?", [
+    userId,
+  ]);
 };
 
 const createUser = async ({ roleId, statusId, fullName, email, phone, passwordHash }) => {
@@ -318,6 +341,9 @@ module.exports = {
   findStatusByName,
   findUserByEmail,
   findUserById,
+  findUserByGoogleId,
+  linkGoogleId,
+  unlinkGoogleId,
   createUser,
   createVerifiedUser,
   updateLastLogin,

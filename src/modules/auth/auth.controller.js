@@ -11,6 +11,7 @@ const {
   validateLogin,
   validateGoogleLogin,
   validateFacebookLogin,
+  validateLinkGoogleAccount,
   validateForgotPassword,
   validateResetPassword,
   validateRefreshToken,
@@ -19,6 +20,7 @@ const {
   normalizeLoginBody,
   normalizeGoogleLoginBody,
   normalizeFacebookLoginBody,
+  normalizeLinkGoogleAccountBody,
   normalizeForgotPasswordBody,
   normalizeResetPasswordBody,
   normalizeVerifyEmailBody,
@@ -125,6 +127,25 @@ const getMe = asyncHandler(async (req, res) => {
   const user = await authService.getCurrentUser(req.user.id);
 
   return successResponse(res, "Current user fetched successfully", user);
+});
+
+const linkGoogleAccount = asyncHandler(async (req, res) => {
+  const payload = normalizeLinkGoogleAccountBody(req.body);
+  const errors = validateLinkGoogleAccount(payload);
+
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  const user = await authService.linkGoogleAccount(req.user.id, payload.credential);
+
+  return successResponse(res, "Google account linked successfully", user);
+});
+
+const unlinkGoogleAccount = asyncHandler(async (req, res) => {
+  const user = await authService.unlinkGoogleAccount(req.user.id);
+
+  return successResponse(res, "Google account unlinked successfully", user);
 });
 
 const verifyEmail = asyncHandler(async (req, res) => {
@@ -237,6 +258,8 @@ module.exports = {
   login,
   googleLogin,
   facebookLogin,
+  linkGoogleAccount,
+  unlinkGoogleAccount,
   getMe,
   verifyEmail,
   resendVerificationEmail,
