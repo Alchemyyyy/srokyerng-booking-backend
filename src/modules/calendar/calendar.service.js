@@ -1,7 +1,7 @@
 const dayjs = require("dayjs");
 const calendarModel = require("./calendar.model");
 const calendarValidation = require("./calendar.validation");
-const { getRoomById } = require("../rooms/room.model");
+const { getRoomById, getRoomsByPropertyId } = require("../rooms/room.model");
 
 const { getDatesBetween } = require("../../utils/getDatesBetween");
 
@@ -81,21 +81,72 @@ const getPropertyCalendar = async (propertyId, startDate, endDate) => {
     };
   }
 
+  // Need every room in the property (not just ones with existing
+  // reservations) so a room with zero bookings still counts as available
+  // capacity when deciding whether the property as a whole is booked out.
+  const rooms = await getRoomsByPropertyId(propertyId);
   const reservations = await calendarModel.getPropertyReservations(
     propertyId,
     startDate,
     endDate
   );
-
   const blocks = await calendarModel.getPropertyBlocks(propertyId, startDate, endDate);
+
   const blockedDates = [...new Set(blocks.map((b) => dayjs(b.start_date).format("YYYY-MM-DD")))];
+  const allDates = getDatesBetween(startDate, endDate);
+
+  // Bucket reservations and blocks per room_id, so each room's own
+  // total_rooms (inventory) gates its own availability instead of one
+  // booking anywhere in the property marking every room's dates as taken.
+  const bookedCountByRoomDate = {};
+  reservations.forEach((reservation) => {
+    const key = reservation.room_id;
+    bookedCountByRoomDate[key] = bookedCountByRoomDate[key] || {};
+    getDatesBetween(reservation.check_in_date, reservation.check_out_date).forEach((date) => {
+      bookedCountByRoomDate[key][date] = (bookedCountByRoomDate[key][date] || 0) + 1;
+    });
+  });
+
+  const blockedDatesByRoom = {};
+  blocks.forEach((block) => {
+    const key = block.room_id;
+    blockedDatesByRoom[key] = blockedDatesByRoom[key] || new Set();
+    blockedDatesByRoom[key].add(dayjs(block.start_date).format("YYYY-MM-DD"));
+  });
+
+  // A date is available at the property level if AT LEAST ONE room still
+  // has free inventory that day; it's only unavailable once every room
+  // (across every room type) is fully booked or blocked for that date.
+  const availableDates = [];
+  const unavailableDates = [];
+
+  allDates.forEach((date) => {
+    const anyRoomAvailable = rooms.some((room) => {
+      const totalRooms = room.total_rooms || 1;
+      const bookedCount = bookedCountByRoomDate[room.id]?.[date] || 0;
+      const isBlocked = blockedDatesByRoom[room.id]?.has(date) || false;
+      return bookedCount < totalRooms && !isBlocked;
+    });
+
+    if (anyRoomAvailable || rooms.length === 0) {
+      availableDates.push(date);
+    } else {
+      unavailableDates.push(date);
+    }
+  });
 
   return {
     result: true,
     status: 200,
     data: {
-      reservations,
+      // Inventory-aware fields — a date is only unavailable once every room
+      // in the property is fully booked/blocked (see loop above).
+      available_dates: availableDates,
+      unavailable_dates: unavailableDates,
       blocked_dates: blockedDates,
+      // Kept for the owner-mode "click a day to see which guest booked it"
+      // panel, which needs the raw per-reservation rows, not just counts.
+      reservations,
     },
   };
 };
