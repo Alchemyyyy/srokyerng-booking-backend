@@ -191,6 +191,13 @@ const getAll = async (filters = {}) => {
         AND deleted_at IS NULL
       ) AS average_rating,
 
+      (
+        SELECT COUNT(*)
+        FROM rooms
+        WHERE property_id = p.id
+        AND deleted_at IS NULL
+      ) AS room_count,
+
       -- Approval
       p.rejection_reason,
       p.approved_by,

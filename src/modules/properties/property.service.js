@@ -125,6 +125,7 @@ const getAll = async (query) => {
     image_url: p.image_url || null,
     price_per_night: p.price_per_night,
     average_rating: p.average_rating,
+    room_count: p.room_count,
 
     rejection_reason: p.rejection_reason,
     approved_by: p.approved_by,
@@ -331,9 +332,10 @@ const updateStatus = async (admin_id, property_id, body) => {
       userId: getProperty.owner_id,
       type: notificationService.NOTIFICATION_TYPES.PROPERTY_REJECTED,
       title: "Request rejected",
-      message: "Your request has been rejected.",
+      message: `Your request has been rejected: ${body.rejection_reason}`,
       data: {
         property_id,
+        rejection_reason: body.rejection_reason,
       },
       critical: true,
     });
@@ -786,8 +788,11 @@ const getPropertyDetailForAdmin = async (propertyId) => {
 
   const amenities = await property.getAmenities(propertyId);
 
+  const rooms = await property.getRooms(propertyId);
+
   propertyRow.images = images;
   propertyRow.amenities = amenities;
+  propertyRow.rooms = rooms;
 
   return {
     result: true,

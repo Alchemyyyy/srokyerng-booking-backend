@@ -240,46 +240,6 @@ const cancelReservation = async (
   return updatedReservation;
 };
 
-const updateReservationStatus = async (reservationId, status, adminId, reason = null) => {
-  const reservation = await reservationModel.findReservationById(reservationId);
-
-  if (!reservation) {
-    const error = new Error("Reservation not found");
-    error.statusCode = 404;
-    throw error;
-  }
-
-  // Validate status transition
-  const currentStatus = reservation.reservation_status;
-  const newStatus = status;
-
-  // Prevent invalid transitions
-  if (
-    currentStatus === RESERVATION_STATUS.CANCELLED &&
-    newStatus !== RESERVATION_STATUS.CANCELLED
-  ) {
-    const error = new Error("Cannot change status of cancelled reservation");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (
-    currentStatus === RESERVATION_STATUS.COMPLETED &&
-    newStatus !== RESERVATION_STATUS.COMPLETED
-  ) {
-    const error = new Error("Cannot change status of completed reservation");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  // Update status
-  await reservationModel.updateReservationStatus(reservationId, status, reason);
-
-  const updatedReservation = await reservationModel.findReservationById(reservationId);
-
-  return updatedReservation;
-};
-
 const ownerUpdateReservationStatus = async (reservationId, status, ownerId, reason = null) => {
   const reservation = await reservationModel.findReservationById(reservationId);
 
@@ -381,7 +341,6 @@ module.exports = {
   getAllReservations,
   cancelReservation,
   getCancellationPolicy,
-  updateReservationStatus,
   ownerUpdateReservationStatus,
   checkAvailability,
 };

@@ -13,8 +13,9 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(roleMiddleware(ROLES.ADMIN));
 
+// Admin is view-only for reservations — status changes are an owner-only
+// action (see owner.routes.js's PATCH /reservations/:id/status).
 router.get("/reservations", reservationController.getAdminReservations);
-router.patch("/reservations/:id/status", reservationController.updateReservationStatus);
 
 router.get("/properties", adminController.getAll);
 router.patch("/properties/:id/status", adminController.updateStatusProperty);
