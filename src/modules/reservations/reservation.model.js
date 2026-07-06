@@ -109,7 +109,15 @@ const findReservationById = async (id) => {
             p.id as property_id,
             p.property_name,
             p.owner_id,
-            owner.full_name as owner_name
+            owner.full_name as owner_name,
+            (
+              SELECT rfr.refund_status
+              FROM refund_requests rfr
+              JOIN payments pmt ON pmt.id = rfr.payment_id
+              WHERE pmt.reservation_id = r.id
+              ORDER BY rfr.created_at DESC
+              LIMIT 1
+            ) AS refund_status
      FROM reservations r
      JOIN users u ON r.customer_id = u.id
      JOIN rooms rm ON r.room_id = rm.id

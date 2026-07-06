@@ -282,6 +282,50 @@ const ownerUpdateReservationStatus = async (reservationId, status, ownerId, reas
 
   const updatedReservation = await reservationModel.findReservationById(reservationId);
 
+  // Auto-create a full refund request if the owner cancelled a paid reservation.
+  // Unlike a customer-initiated cancellation, the owner caused this — so no
+  // late-cancellation penalty applies; the customer is always owed 100%.
+  let refund_info = null;
+  if (status === RESERVATION_STATUS.CANCELLED) {
+    try {
+      const paymentModel = require("../payments/payment.model");
+      const refundRequestModel = require("../payments/refund-request.model");
+      const payment = await paymentModel.findPaymentByReservationId(reservationId);
+
+      if (payment && payment.status_name === "paid") {
+        const existingRefunds = await refundRequestModel.findRefundRequestsByPaymentId(payment.id);
+        const hasPending = existingRefunds.some((r) => r.refund_status === "requested");
+
+        if (!hasPending) {
+          const refundAmount = parseFloat(payment.amount);
+          const refundReason = `Cancelled by property owner (full refund)${reason ? ` — ${reason}` : ""}`;
+
+          const insertId = await refundRequestModel.createRefundRequest(
+            payment.id,
+            updatedReservation.customer_id,
+            refundAmount,
+            refundReason
+          );
+
+          const refundRequest = await refundRequestModel.findRefundRequestById(insertId);
+          refund_info = {
+            refund_request_id: refundRequest.id,
+            payment_id: payment.id,
+            refund_amount: refundAmount,
+            refund_percentage: 100,
+            refund_reason: refundReason,
+            refund_status: refundRequest.refund_status,
+          };
+        }
+      }
+    } catch (refundError) {
+      // Don't fail the status update if refund creation fails
+      console.error("Owner-cancel auto-refund creation error:", refundError.message);
+    }
+  }
+
+  updatedReservation.refund_info = refund_info;
+
   return updatedReservation;
 };
 
