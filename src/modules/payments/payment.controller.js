@@ -260,7 +260,7 @@ const uploadReceipt = asyncHandler(async (req, res) => {
         title: "Payment submitted",
         message: "A payment receipt has been submitted for your property.",
         data: { payment_id: payment.id, reservation_id: payment.reservation_id },
-        critical: false,
+        critical: true,
       })
       .catch(() => {});
   }

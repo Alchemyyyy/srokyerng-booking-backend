@@ -34,7 +34,7 @@ const createReservation = asyncHandler(async (req, res) => {
           title: "Reservation created",
           message: "Your reservation has been created.",
           data: { reservation_id: reservation.id },
-          critical: false,
+          critical: true,
         })
         .catch(() => {});
 
@@ -45,7 +45,7 @@ const createReservation = asyncHandler(async (req, res) => {
           title: "New Reservation Received",
           message: `You have received a new reservation for ${reservation.room_name}.`,
           data: { reservation_id: reservation.id },
-          critical: false,
+          critical: true,
         })
         .catch(() => {});
     }
@@ -133,7 +133,7 @@ const cancelReservation = asyncHandler(async (req, res) => {
         title: "Reservation Cancelled",
         message: `A reservation for ${reservation.room_name} was cancelled by the customer.`,
         data: { reservation_id: reservation.id },
-        critical: false,
+        critical: true,
       })
       .catch(() => {});
   }
@@ -224,7 +224,7 @@ const ownerUpdateReservationStatus = asyncHandler(async (req, res) => {
           title: "Reservation cancelled",
           message: "Your reservation has been cancelled by the property owner.",
           data: { reservation_id: reservation.id },
-          critical: false,
+          critical: true,
         })
         .catch(() => {});
     }

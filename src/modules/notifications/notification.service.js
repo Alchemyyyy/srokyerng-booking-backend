@@ -8,6 +8,7 @@ const NOTIFICATION_TYPES = {
   PAYMENT_SUBMITTED: "payment_submitted",
   PAYMENT_VERIFIED: "payment_verified",
   PAYMENT_REJECTED: "payment_rejected",
+  PAYMENT_REFUNDED: "payment_refunded",
   PROPERTY_APPROVED: "property_approved",
   PROPERTY_REJECTED: "property_rejected",
   PASSWORD_CHANGED: "password_changed",
@@ -127,7 +128,7 @@ const archiveOne = async (userId, notificationId) => {
   };
 };
 
-const sendCriticalEmail = async ({ userId, email }) => {
+const sendCriticalEmail = async ({ userId, email, type }) => {
   if (!email) {
     return;
   }
@@ -145,6 +146,7 @@ const sendCriticalEmail = async ({ userId, email }) => {
       title: email.title || email.subject,
       message: email.message,
       actionUrl: email.actionUrl,
+      type,
     });
   } catch (error) {
     console.error("Notification email failed:", error);
@@ -177,6 +179,7 @@ const notifyUser = async ({
         title,
         message,
       },
+      type,
     });
   }
 
