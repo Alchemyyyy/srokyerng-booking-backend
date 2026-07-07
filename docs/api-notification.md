@@ -20,7 +20,7 @@ Query parameters:
 
 - `page`: defaults to `1`
 - `limit`: defaults to `20`, max `100`
-- `status`: `all`, `read`, or `unread`, defaults to `all`
+- `status`: `all`, `read`, `unread`, or `archived`, defaults to `all`
 - `type`: optional notification type filter
 
 Supported notification types:
@@ -31,6 +31,7 @@ Supported notification types:
 - `payment_submitted`
 - `payment_verified`
 - `payment_rejected`
+- `payment_refunded`
 - `property_approved`
 - `property_rejected`
 - `password_changed`
@@ -244,4 +245,22 @@ Auth/user module events:
 - password reset completed: creates `password_changed` notification and sends critical email when SMTP is configured
 - password changed from profile: creates `password_changed` notification and sends critical email when SMTP is configured
 
-Reservation, payment, and property events should be wired from their own modules when those module owners are ready.
+Reservation module:
+
+- reservation created: creates `reservation_created` notification
+- reservation confirmed: creates `reservation_confirmed` notification
+- reservation cancelled: creates `reservation_cancelled` notification
+
+Payment module:
+
+- receipt submitted: creates `payment_submitted` notification
+- payment verified: creates `payment_verified` notification
+- payment rejected: creates `payment_rejected` notification
+- payment refunded: creates `payment_refunded` notification
+
+Property module:
+
+- property approved: creates `property_approved` notification
+- property rejected: creates `property_rejected` notification
+
+The reservation, payment, and property modules are fully wired today and fire these notifications directly from their own services.

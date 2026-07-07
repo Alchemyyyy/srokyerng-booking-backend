@@ -18,12 +18,6 @@ Owner:
 - `PATCH /owner/refund-requests/:id/approve` — Approve refund request
 - `PATCH /owner/refund-requests/:id/reject` — Reject refund request
 
-Admin:
-
-- `GET /admin/refund-requests` — List pending refund requests
-- `PATCH /admin/refund-requests/:id/approve` — Approve refund request
-- `PATCH /admin/refund-requests/:id/reject` — Reject refund request
-
 ---
 
 ## Customer Endpoints
@@ -60,13 +54,15 @@ Success response:
       "reasons": [],
       "deadline": "2026-06-30T00:00:00.000Z",
       "hours_until_deadline": 9,
-      "status": "confirmed"
+      "status": "confirmed",
+      "refund_percentage": 100,
+      "is_late_cancellation": false
     },
     "policy_summary": {
       "description": "Cancellation is allowed up to 24 hours before check-in",
       "full_refund_deadline": "2026-06-30T00:00:00.000Z",
       "late_cancellation_refund_percentage": 50,
-      "non_refundable_after": "24 hours before check-in"
+      "non_refundable_after": "check-in date"
     }
   }
 }
@@ -237,9 +233,18 @@ Success response:
   "message": "Payment refunded successfully",
   "data": {
     "id": 10,
+    "reservation_id": 1,
+    "customer_id": 5,
+    "owner_id": 2,
+    "amount": 400.00,
+    "currency": "USD",
     "payment_status": "refunded",
+    "receipt_image_url": "https://example.com/receipts/10.jpg",
+    "customer_name": "John Doe",
     "paid_at": "2026-05-21T10:00:00.000Z",
-    "refunded_at": "2026-05-22T08:00:00.000Z"
+    "verified_at": "2026-05-21T10:05:00.000Z",
+    "created_at": "2026-05-20T09:00:00.000Z",
+    "updated_at": "2026-05-22T08:00:00.000Z"
   }
 }
 ```
@@ -413,118 +418,6 @@ Success response:
 
 ---
 
-## Admin Endpoints
-
-### List Pending Refund Requests
-
-```text
-GET /admin/refund-requests
-```
-
-Requires authentication and `admin` role.
-
-Query parameters:
-
-- `limit` — max results (default 50, max 100)
-
-Returns all refund requests with status `requested` for audit and review.
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Pending refund requests retrieved successfully",
-  "data": [
-    {
-      "id": 3,
-      "payment_id": 102,
-      "requested_by": 10,
-      "amount": 500.00,
-      "reason": "I need a refund for my cancelled booking",
-      "refund_status": "requested",
-      "requested_at": "2026-06-04T06:00:00.000Z"
-    }
-  ]
-}
-```
-
-### Approve Refund Request
-
-```text
-PATCH /admin/refund-requests/:id/approve
-```
-
-Requires authentication and `admin` role.
-
-Request body (optional):
-
-```json
-{
-  "decision_note": "Admin approved - valid cancellation"
-}
-```
-
-Notes:
-
-- Only pending refund requests can be approved.
-- The associated payment must be in `paid` status.
-- Approving also transitions the payment status to `refunded`.
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Refund request approved successfully",
-  "data": {
-    "id": 3,
-    "payment_id": 102,
-    "refund_status": "approved",
-    "handled_by": 1,
-    "handled_at": "2026-06-04T07:00:00.000Z"
-  }
-}
-```
-
-### Reject Refund Request
-
-```text
-PATCH /admin/refund-requests/:id/reject
-```
-
-Requires authentication and `admin` role.
-
-Request body (optional):
-
-```json
-{
-  "decision_note": "Refund policy does not apply"
-}
-```
-
-Notes:
-
-- Only pending refund requests can be rejected.
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Refund request rejected successfully",
-  "data": {
-    "id": 4,
-    "payment_id": 103,
-    "refund_status": "rejected",
-    "handled_by": 1,
-    "handled_at": "2026-06-04T07:05:00.000Z"
-  }
-}
-```
-
----
-
 ## Status Values
 
 ### Reservation Statuses
@@ -559,6 +452,5 @@ Success response:
 7. **Refund eligibility:** Only `paid` payments can be refunded.
 8. **Refund requires cancellation:** Reservation must be `cancelled` before refund.
 9. **Owner scope:** Owners can only manage refunds for their own properties.
-10. **Admin scope:** Admins can view and process all refund requests.
-11. **Auto-expire pending reservations:** Reservations in `pending` status for more than 48 hours are automatically cancelled by the system with reason `"Auto-expired: no payment received within 48 hours"`.
-12. **Auto-complete confirmed reservations:** Reservations in `confirmed` status are automatically marked as `completed` after the check-out date passes.
+10. **Auto-expire pending reservations:** Reservations in `pending` status for more than 48 hours are automatically cancelled by the system with reason `"Auto-expired: no payment received within 48 hours"`.
+11. **Auto-complete confirmed reservations:** Reservations in `confirmed` status are automatically marked as `completed` after the check-out date passes.

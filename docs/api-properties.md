@@ -1,51 +1,6 @@
 # Admin EndPoints (For Admin only)
 
-## Get All Properties
-
-```text
-GET admin/properties
-```
-
-Authorization: Required
-
-success Response:
-
-```json
-{
-  "success": true,
-  "message": "Get all properties successfully",
-  "data": [
-    {
-      "id": 1,
-      "property_name": "Sokha Hotel",
-      "description": "Luxury hotel in Siem Reap",
-      "address": "Street 60",
-      "city": "Siem Reap",
-      "province": "Siem Reap",
-      "country": "Cambodia",
-      "latitude": null,
-      "longitude": null,
-      "owner_id": 2,
-      "owner_name": "Owner Sokha",
-      "owner_email": "owner1@gmail.com",
-      "owner_phone": "098111222",
-      "category_id": 1,
-      "category_name": "Hotel",
-      "status_id": 2,
-      "status_name": "approved",
-      "image_id": 1,
-      "image_url": "hotel1.jpg",
-      "is_cover": 1,
-      "rejection_reason": null,
-      "approved_by": 1,
-      "approved_at": null,
-      "created_at": "2026-05-06T15:28:17.000Z",
-      "updated_at": "2026-05-06T17:22:22.000Z",
-      "deleted_at": null
-    }
-  ]
-}
-```
+Note: See "Get all properties (admin)" further below for the current `GET /api/admin/properties` documentation.
 
 ## Update Property Status
 
@@ -63,6 +18,11 @@ body:
   "rejection_reason": ""
 }
 ```
+
+Business rules:
+
+- Approving (`status_id: 2`) requires the property to have at least 1 image, at least 1 room, and every room must have at least 1 image — otherwise the request fails with `400`.
+- Rejecting (`status_id: 3`) requires a non-empty `rejection_reason`.
 
 Success Response:
 
@@ -122,99 +82,15 @@ success response:
         "category_id": 1,
         "category_name": "Hotel"
       },
+      "price_per_night": "50.00",
+      "average_rating": 4.5,
       "image_url": null
     }
   ]
 }
 ```
 
-## Get Approved Property detail (Public)
-
-```text
-GET /properties/:propertyId
-```
-
-Authentication: Not required.
-
-success response:
-
-```json
-{
-  "success": true,
-  "message": "Get owner detail successfully",
-  "data": {
-    "id": 1,
-    "property_name": "Sokha Hotel",
-    "description": "Luxury hotel in Siem Reap",
-    "address": "Street 60",
-    "city": "Siem Reap",
-    "province": "Siem Reap",
-    "country": "Cambodia",
-    "latitude": null,
-    "longitude": null,
-    "contact_phone": "098111222",
-    "contact_email": "hotel@sokha.com",
-    "created_at": "2026-05-06T15:28:17.000Z",
-    "updated_at": "2026-05-06T17:22:22.000Z",
-    "status_id": 2,
-    "status_name": "approved",
-    "category_id": 1,
-    "category_name": "Hotel",
-    "owner_id": 2,
-    "full_name": "Owner Sokha",
-    "owner_phone": "098111222",
-    "owner_email": "owner1@gmail.com",
-    "images": [
-      {
-        "id": 1,
-        "image_url": "hotel1.jpg",
-        "is_cover": 1,
-        "sort_order": 0
-      },
-      {
-        "id": 2,
-        "image_url": "hotel2.jpg",
-        "is_cover": 0,
-        "sort_order": 0
-      }
-    ],
-    "amenities": [
-      {
-        "id": 1,
-        "amenity_name": "Wi-Fi"
-      },
-      {
-        "id": 4,
-        "amenity_name": "Air Conditioning"
-      },
-      {
-        "id": 5,
-        "amenity_name": "Swimming Pool"
-      }
-    ],
-    "rooms": [
-      {
-        "id": 1,
-        "room_name": "Deluxe Room",
-        "description": "Nice deluxe room",
-        "price_per_night": "50.00",
-        "max_guests": 2,
-        "total_rooms": 10,
-        "room_type": "Deluxe"
-      },
-      {
-        "id": 2,
-        "room_name": "Suite Room",
-        "description": "Luxury suite",
-        "price_per_night": "120.00",
-        "max_guests": 4,
-        "total_rooms": 5,
-        "room_type": "Suite"
-      }
-    ]
-  }
-}
-```
+Note: See "Get property detail(public)" further below for the current property-detail-by-id documentation.
 
 ## Register Property (owner)
 
@@ -242,6 +118,8 @@ body
   "number_of_floors": 10
 }
 ```
+
+Required fields: `category_id, property_name, address, city_id, province_id, country_id`. All other fields (`description, latitude, longitude, contact_phone, contact_email, number_of_floors`) are optional.
 
 success response:
 
@@ -279,7 +157,7 @@ success response:
 ## Update Property (Owner only)
 
 ```text
-PATCH /properties/:propertyId
+PATCH /properties/:id
 ```
 
 Authentication: Required.
@@ -344,7 +222,7 @@ Success Response:
 ## Delete Property (Owner only)
 
 ```text
-DELETE /properties/:propertyId
+DELETE /properties/:id
 ```
 
 Authentication: Required.
@@ -466,7 +344,7 @@ Success Response
 ## Get My Property By Id (Owner only)
 
 ```text
-GET /properties/my/:propertyId
+GET /properties/my/:id
 ```
 
 Authentication: Required.
@@ -535,7 +413,7 @@ Success Response:
 ## Upload Property Images (Owner only)
 
 ```text
-POST /api/properties/:propertyId/images
+POST /api/properties/:id/images
 ```
 
 ```text
@@ -564,7 +442,7 @@ success Response:
 ## Delete Property Image (Owner only)
 
 ```text
-DELETE properties/:propertyId/images/:imageId
+DELETE /properties/:id/images/:imageId
 ```
 
 Authentication: Required.
@@ -580,7 +458,7 @@ Authentication: Required.
 ## Set Cover Image Property (Owner only)
 
 ```text
-PATCH properties/:propertyId/images/:imageId/cover
+PATCH /properties/:propertyId/images/:imageId/cover
 ```
 
 Authentication: Required.
@@ -632,7 +510,7 @@ Success Response:
 ## Get All Images Property (public)
 
 ```text
-GET properties/:propertyId/images
+GET /properties/:propertyId/images
 ```
 
 Authentication: No required.
@@ -774,8 +652,10 @@ success response:
 ## Get property detail(public)
 
 ```text
-GET /api/properties/propertyId
+GET /api/properties/:id
 ```
+
+Note: `slug` is currently always `null` (reserved for future use — every property query hard-codes `NULL AS slug`).
 
 success response:
 
@@ -786,7 +666,7 @@ success response:
   "data": {
     "id": 1,
     "property_name": "Sokha Hotel",
-    "slug": "sokha-hotel",
+    "slug": null,
     "description": "Luxury hotel in Phnom Penh",
     "address": "Street 60, Phnom Penh",
     "latitude": "11.55640000",

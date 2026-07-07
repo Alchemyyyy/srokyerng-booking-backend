@@ -116,7 +116,7 @@ success response:
 ## Check room availability (public)
 
 ```text
-GET /api/properties/8/availability?check_in_date=2026-06-01&check_out_date=2026-06-03&guests=2
+GET /api/rooms/:roomId/availability?check_in_date=2026-06-01&check_out_date=2026-06-03&guests=2
 ```
 
 check_in_date >= Now
@@ -204,6 +204,7 @@ success response:
     "property_id": 12,
     "room_type_id": 1,
     "room_name": "VIP Room",
+    "floor_number": 2,
     "price_per_night": "100.00",
     "max_guests": 2,
     "total_rooms": 5
@@ -517,7 +518,7 @@ success response:
 ## Approve property uppdate-request(admin)
 
 ```text
-GET admin/property-update-requests/:requestId/approve
+PATCH admin/property-update-requests/:requestId/approve
 ```
 
 Authorization: required
@@ -535,7 +536,7 @@ success response:
 ## Reject property uppdate-request(admin)
 
 ```text
-GET admin/property-update-requests/:requestId/reject
+PATCH admin/property-update-requests/:requestId/reject
 ```
 
 Authorization: required

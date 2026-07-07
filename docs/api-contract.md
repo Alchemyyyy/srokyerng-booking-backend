@@ -1,5 +1,23 @@
 # API Contract
 
+## Other Modules
+
+This file covers only the shared Auth and User endpoints and the response envelope conventions used across the API. Module-specific endpoints live in their own doc files:
+
+- `api-properties.md`
+- `api-rooms.md`
+- `api-reservation.md`
+- `api-cancellation-refund.md`
+- `api-payment.md`
+- `api-amenity.md`
+- `api-review.md`
+- `api-wishlist.md`
+- `api-notification.md`
+- `api-chat.md`
+- `api-report.md`
+- `api-analytics.md`
+- `api-calendar.md`
+
 Base URL:
 
 ```text
@@ -24,7 +42,7 @@ Error:
 {
   "success": false,
   "message": "Something went wrong",
-  "errors": []
+  "errors": null
 }
 ```
 
@@ -50,10 +68,14 @@ Final role values:
 
 Sensitive auth endpoints are rate-limited:
 
-- `POST /auth/login`: 5 requests per 15 minutes
+- `POST /auth/login`: 10 requests per 15 minutes
+- `POST /auth/register`: 10 requests per 15 minutes
+- `POST /auth/refresh-token`: 30 requests per 15 minutes
 - `POST /auth/forgot-password`: 3 requests per 15 minutes
 - `POST /auth/reset-password`: 5 requests per 15 minutes
 - `POST /auth/resend-verification-email`: 3 requests per 15 minutes
+
+`POST /auth/google` and `POST /auth/facebook` share the same rate limit as `POST /auth/login`.
 
 ### Register
 
@@ -97,15 +119,19 @@ Returns:
 
 ```json
 {
-  "access_token": "<jwt>",
-  "user": {
-    "id": 1,
-    "full_name": "Customer User",
-    "email": "customer@example.com",
-    "phone": "012345678",
-    "role": "customer",
-    "status": "active",
-    "profile_image_url": null
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "access_token": "<jwt>",
+    "user": {
+      "id": 1,
+      "full_name": "Customer User",
+      "email": "customer@example.com",
+      "phone": "012345678",
+      "role": "customer",
+      "status": "active",
+      "profile_image_url": null
+    }
   }
 }
 ```
@@ -126,6 +152,13 @@ fetch(url, {
 });
 ```
 
+### Social Login / Account Linking
+
+- `POST /auth/google` — Log in (or auto-register) using a Google ID token credential. Returns the same wrapped `access_token`/`user` shape as Login, with a "Google login successful" message, and sets the refresh-token cookie the same way.
+- `POST /auth/facebook` — Log in (or auto-register) using a Facebook access token. Same response shape as above, with a "Facebook login successful" message.
+- `POST /auth/google/link` — Requires authentication. Links a Google account (credential) to the current user's account.
+- `DELETE /auth/google/link` — Requires authentication. Unlinks the current user's Google account.
+
 ### Refresh Token
 
 ```text
@@ -140,15 +173,19 @@ Returns:
 
 ```json
 {
-  "access_token": "<new-jwt>",
-  "user": {
-    "id": 1,
-    "full_name": "Customer User",
-    "email": "customer@example.com",
-    "phone": "012345678",
-    "role": "customer",
-    "status": "active",
-    "profile_image_url": null
+  "success": true,
+  "message": "Token refreshed successfully",
+  "data": {
+    "access_token": "<new-jwt>",
+    "user": {
+      "id": 1,
+      "full_name": "Customer User",
+      "email": "customer@example.com",
+      "phone": "012345678",
+      "role": "customer",
+      "status": "active",
+      "profile_image_url": null
+    }
   }
 }
 ```
@@ -165,15 +202,19 @@ Returns the current active user from the database:
 
 ```json
 {
-  "id": 1,
-  "full_name": "Customer User",
-  "email": "customer@example.com",
-  "phone": "012345678",
-  "role": "customer",
-  "status": "active",
-  "profile_image_url": null,
-  "last_login": "2026-05-10T10:00:00.000Z",
-  "email_verified_at": null
+  "success": true,
+  "message": "Current user fetched successfully",
+  "data": {
+    "id": 1,
+    "full_name": "Customer User",
+    "email": "customer@example.com",
+    "phone": "012345678",
+    "role": "customer",
+    "status": "active",
+    "profile_image_url": null,
+    "last_login": "2026-05-10T10:00:00.000Z",
+    "email_verified_at": null
+  }
 }
 ```
 
@@ -236,16 +277,20 @@ Requires authentication.
 Returns active refresh sessions for the current user:
 
 ```json
-[
-  {
-    "id": 1,
-    "user_agent": "Mozilla/5.0",
-    "ip_address": "127.0.0.1",
-    "expires_at": "2026-06-18T01:00:00.000Z",
-    "last_used_at": "2026-05-18T01:00:00.000Z",
-    "created_at": "2026-05-18T01:00:00.000Z"
-  }
-]
+{
+  "success": true,
+  "message": "Sessions fetched successfully",
+  "data": [
+    {
+      "id": 1,
+      "user_agent": "Mozilla/5.0",
+      "ip_address": "127.0.0.1",
+      "expires_at": "2026-06-18T01:00:00.000Z",
+      "last_used_at": "2026-05-18T01:00:00.000Z",
+      "created_at": "2026-05-18T01:00:00.000Z"
+    }
+  ]
+}
 ```
 
 ### Revoke Session
@@ -329,29 +374,33 @@ Returns:
 
 ```json
 {
-  "users": [
-    {
-      "id": 1,
-      "full_name": "Customer User",
-      "email": "customer@example.com",
-      "phone": "012345678",
-      "role": "customer",
-      "status": "active",
-      "profile_image_url": null,
-      "gender": null,
-      "date_of_birth": null,
-      "address": null,
-      "last_login": "2026-05-10T10:00:00.000Z",
-      "email_verified_at": null,
-      "created_at": "2026-05-01T10:00:00.000Z",
-      "updated_at": "2026-05-01T10:00:00.000Z"
+  "success": true,
+  "message": "Users fetched successfully",
+  "data": {
+    "users": [
+      {
+        "id": 1,
+        "full_name": "Customer User",
+        "email": "customer@example.com",
+        "phone": "012345678",
+        "role": "customer",
+        "status": "active",
+        "profile_image_url": null,
+        "gender": null,
+        "date_of_birth": null,
+        "address": null,
+        "last_login": "2026-05-10T10:00:00.000Z",
+        "email_verified_at": null,
+        "created_at": "2026-05-01T10:00:00.000Z",
+        "updated_at": "2026-05-01T10:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 1,
-    "total_pages": 1
   }
 }
 ```
@@ -395,18 +444,22 @@ Returns the current active user's account and profile data:
 
 ```json
 {
-  "id": 1,
-  "full_name": "Customer User",
-  "email": "customer@example.com",
-  "phone": "012345678",
-  "role": "customer",
-  "status": "active",
-  "profile_image_url": null,
-  "gender": null,
-  "date_of_birth": null,
-  "address": null,
-  "last_login": "2026-05-10T10:00:00.000Z",
-  "email_verified_at": null
+  "success": true,
+  "message": "Profile fetched successfully",
+  "data": {
+    "id": 1,
+    "full_name": "Customer User",
+    "email": "customer@example.com",
+    "phone": "012345678",
+    "role": "customer",
+    "status": "active",
+    "profile_image_url": null,
+    "gender": null,
+    "date_of_birth": null,
+    "address": null,
+    "last_login": "2026-05-10T10:00:00.000Z",
+    "email_verified_at": null
+  }
 }
 ```
 
@@ -460,6 +513,16 @@ Allowed file types:
 Maximum file size: `5MB`.
 
 Stores the image under `/uploads/profiles/` and updates `profile_image_url`.
+
+### Delete My Profile Image
+
+```text
+DELETE /users/me/profile-image
+```
+
+Requires authentication.
+
+Removes the current user's profile image and clears `profile_image_url`.
 
 ### Change My Password
 

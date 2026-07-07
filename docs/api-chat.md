@@ -13,8 +13,8 @@ General chat endpoints:
 - `GET /api/chats` — List conversations for current user
 - `POST /api/chats` — Create a new conversation with initial message
 - `GET /api/chats/:conversationId/messages` — Get message history
-- `POST /api/chats/:conversationId/messages` — Send a message (text only)
-- `POST /api/chats/:conversationId/upload-image` — Send image (with optional text)
+- `POST /api/chats/:conversationId/messages` — Send a message (text, image, or both)
+- `DELETE /api/chats/:conversationId/messages/:messageId` — Unsend own message
 - `PATCH /api/chats/:conversationId/read` — Mark messages as read
 
 Property-scoped chat endpoints:
@@ -245,10 +245,12 @@ This endpoint supports **3 use cases** in a single request:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `image` | File | No | Image file (JPEG, PNG, WebP, max 5MB) |
+| `image` | File | No | Image or audio file (JPEG, PNG, WebP, or WebM/OGG/MP3/WAV/M4A audio, max 5MB) |
 | `message_body` | Text | No | Message text (1-2000 characters) |
 
 > **Note:** At least one of `image` or `message_body` must be provided.
+>
+> **Voice messages:** despite the field name `image`, this field also accepts audio files, so voice messages can be sent the same way as image attachments — upload the audio file as `image` with an optional `message_body` caption.
 
 ### Success Response (201)
 
@@ -256,7 +258,7 @@ This endpoint supports **3 use cases** in a single request:
 ```json
 {
   "success": true,
-  "message": "Image sent successfully",
+  "message": "Message sent successfully",
   "data": {
     "id": 4,
     "conversation_id": 1,
@@ -275,7 +277,7 @@ This endpoint supports **3 use cases** in a single request:
 ```json
 {
   "success": true,
-  "message": "Image sent successfully",
+  "message": "Message sent successfully",
   "data": {
     "id": 5,
     "conversation_id": 1,
@@ -294,7 +296,7 @@ This endpoint supports **3 use cases** in a single request:
 ```json
 {
   "success": true,
-  "message": "Image sent successfully",
+  "message": "Message sent successfully",
   "data": {
     "id": 6,
     "conversation_id": 1,
@@ -314,7 +316,7 @@ This endpoint supports **3 use cases** in a single request:
 ```json
 {
   "success": false,
-  "message": "No image file provided"
+  "message": "Either image or message text is required"
 }
 ```
 
@@ -328,7 +330,65 @@ This endpoint supports **3 use cases** in a single request:
 ```json
 {
   "success": false,
-  "message": "Invalid file type. Allowed types: image/jpeg, image/png, image/webp"
+  "message": "Invalid file type or extension. Allowed: images and audio files."
+}
+```
+
+---
+
+## Unsend Message
+
+```text
+DELETE /api/chats/:conversationId/messages/:messageId
+```
+
+Requires authentication. Role: `customer` or `owner`.
+
+Lets a participant unsend (delete) their own message.
+
+Success response:
+
+```json
+{
+  "success": true,
+  "message": "Message unsent successfully",
+  "data": {
+    "messageId": 5
+  }
+}
+```
+
+Error responses:
+
+```json
+{
+  "success": false,
+  "message": "Conversation not found",
+  "errors": ["Not Found"]
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "You do not have access to this conversation",
+  "errors": ["Forbidden"]
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Message not found",
+  "errors": ["Not Found"]
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "You can only unsend your own messages",
+  "errors": ["Forbidden"]
 }
 ```
 
@@ -385,12 +445,12 @@ POST /api/properties/:propertyId/chats
 
 Requires authentication. Role: `customer` only.
 
-Creates a new conversation with the property owner. No request body required. The conversation is created without an initial message; use `POST /api/chats/:conversationId/upload-image` to send the first message.
+Creates a new conversation with the property owner. No request body required. The conversation is created without an initial message; use `POST /api/chats/:conversationId/messages` to send the first message.
 
 Rules:
 
 - Only customers can start conversations from a property.
-- The property must exist and be approved.
+- The property must exist. (Note: the property's approval status is not currently checked — conversations can be started even against pending/rejected properties.)
 - Duplicate conversations for the same customer-property pair are rejected.
 
 Success response (201):
@@ -534,13 +594,14 @@ Error responses:
 
 ---
 
-## Image Upload Rules
+## Image/Attachment Upload Rules
 
 | Rule | Value |
 |------|-------|
-| Allowed MIME types | `image/jpeg`, `image/png`, `image/webp` |
+| Allowed image MIME types | `image/jpeg`, `image/png`, `image/webp` |
+| Allowed audio MIME types (voice messages) | `audio/webm`, `audio/ogg`, `audio/mp3`, `audio/mpeg`, `audio/wav`, `audio/x-m4a`, `audio/m4a` |
 | Max file size | 5 MB |
-| Form field name | `image` |
+| Form field name | `image` (accepts both image and audio files) |
 | Storage directory | `uploads/chats/` |
 | URL format | `/uploads/chats/chat-{timestamp}-{random}.{ext}` |
 
@@ -552,6 +613,6 @@ Error responses:
 |-------------|-------------|
 | 400 | Validation failed, invalid ID, missing required fields, file too large, invalid file type |
 | 401 | Unauthorized (missing or invalid token) |
-| 403 | Forbidden (not a participant, wrong role) |
-| 404 | Conversation, property, or reservation not found |
+| 403 | Forbidden (not a participant, wrong role, not the message sender) |
+| 404 | Conversation, message, property, or reservation not found |
 | 409 | Duplicate conversation |

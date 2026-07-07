@@ -11,11 +11,14 @@ Customer:
 - `POST /payments/:id/proof`
 - `PATCH /payments/:id/proof`
 - `GET /payments/:id/proof`
+- `GET /payments/reservation/:id/owner-payment-accounts`
 
 Owner:
 
 - `GET /owner/payments`
 - `GET /owner/payments/:id`
+- `GET /owner/payments/pending-verification`
+- `GET /owner/payments/:id/proof`
 - `PATCH /owner/payments/:id/verify`
 - `PATCH /owner/payments/:id/reject`
 - `PATCH /owner/payments/:id/refund`
@@ -82,7 +85,7 @@ Success response:
     "payment_method_id": 2,
     "owner_payment_account_id": 1,
     "payment_status": "pending",
-    "total_amount": 500.0,
+    "amount": 500.0,
     "receipt_image_url": null,
     "rejection_reason": null,
     "verified_by": null,
@@ -118,7 +121,7 @@ Success response:
       "reservation_id": 1,
       "payment_method_id": 2,
       "payment_status": "submitted",
-      "total_amount": 500.0,
+      "amount": 500.0,
       "receipt_image_url": "/uploads/receipts/receipt-123.jpg",
       "created_at": "2026-05-20T12:00:00.000Z"
     }
@@ -154,7 +157,7 @@ Success response:
     "payment_method_id": 2,
     "owner_payment_account_id": 3,
     "payment_status": "submitted",
-    "total_amount": 500.0,
+    "amount": 500.0,
     "receipt_image_url": "/uploads/receipts/receipt-123.jpg",
     "rejection_reason": null,
     "verified_by": null,
@@ -349,7 +352,7 @@ Success response:
       "reservation_id": 1,
       "customer_id": 5,
       "payment_status": "submitted",
-      "total_amount": 500.0,
+      "amount": 500.0,
       "receipt_image_url": "/uploads/receipts/receipt-123.jpg",
       "created_at": "2026-05-20T12:00:00.000Z"
     }
@@ -500,7 +503,7 @@ DELETE /owner/payment-accounts/:id
 
 Requires authentication and `owner` role.
 
-Deletes the payment account by deactivating it. This is a safe delete operation for owner payment account cleanup, and the response returns the resulting inactive account.
+Permanently deletes the payment account row (and its QR code image file, if any). This is a hard delete — the record cannot be recovered afterward.
 
 Success response:
 
@@ -510,7 +513,7 @@ Success response:
   "message": "Payment account deleted successfully",
   "data": {
     "id": 5,
-    "is_active": false
+    "deleted": true
   }
 }
 ```
@@ -589,7 +592,7 @@ Success response:
     "reservation_id": 1,
     "customer_id": 5,
     "payment_status": "submitted",
-    "total_amount": 500.0,
+    "amount": 500.0,
     "receipt_image_url": "/uploads/receipts/receipt-123.jpg",
     "created_at": "2026-05-20T12:00:00.000Z"
   }
@@ -689,6 +692,8 @@ Behavior:
 - Marks the payment as verified.
 - Sets `paid_at` and `verified_by`.
 
+Note: `notes` is accepted and validated but not currently stored or returned by the API.
+
 Success response:
 
 ```json
@@ -753,6 +758,10 @@ Allowed transition:
 
 - `paid` → `refunded`
 
+Precondition:
+
+- The reservation must already be in `cancelled` status, otherwise the request fails with `400` and message "Can only refund payments for cancelled reservations."
+
 Request body (optional):
 
 ```json
@@ -760,6 +769,8 @@ Request body (optional):
   "notes": "Customer cancelled before check-in"
 }
 ```
+
+Note: `notes` is accepted and validated but not currently stored or returned by the API.
 
 Marks the payment as refunded.
 
@@ -772,8 +783,7 @@ Success response:
   "data": {
     "id": 10,
     "payment_status": "refunded",
-    "paid_at": "2026-05-21T10:00:00.000Z",
-    "refunded_at": "2026-05-22T08:00:00.000Z"
+    "paid_at": "2026-05-21T10:00:00.000Z"
   }
 }
 ```
@@ -857,11 +867,6 @@ Success response:
 }
 ```
 
-Notes:
-
-- `rejection_reason` is required.
-- The payment is marked as failed.
-
 ## Admin Endpoints
 
 ### Get All Payments
@@ -893,7 +898,7 @@ Success response:
       "customer_id": 5,
       "owner_id": 2,
       "payment_status": "submitted",
-      "total_amount": 500.0,
+      "amount": 500.0,
       "receipt_image_url": "/uploads/receipts/receipt-123.jpg",
       "created_at": "2026-05-20T12:00:00.000Z"
     }
@@ -923,7 +928,7 @@ Success response:
     "customer_id": 5,
     "owner_id": 2,
     "payment_status": "submitted",
-    "total_amount": 500.0,
+    "amount": 500.0,
     "receipt_image_url": "/uploads/receipts/receipt-123.jpg",
     "rejection_reason": null,
     "verified_by": null,
@@ -989,7 +994,7 @@ Success response:
       "id": 10,
       "reservation_id": 1,
       "payment_status": "submitted",
-      "total_amount": 500.0,
+      "amount": 500.0,
       "created_at": "2026-05-20T12:00:00.000Z"
     }
   ]

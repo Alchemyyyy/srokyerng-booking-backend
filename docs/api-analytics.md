@@ -540,6 +540,7 @@ Query parameters:
 - `start_date`
 - `end_date`
 - `property_id` — optional, filter by property (must belong to owner).
+  Note: due to a current backend limitation, this parameter is validated but not actually applied as a filter — the response includes all of the owner's properties/rooms regardless of this value.
 - `limit` — optional, max records to return (1–50). Defaults to `10`.
 
 Success response:
@@ -601,6 +602,7 @@ Query parameters:
 - `start_date`
 - `end_date`
 - `property_id` — optional, filter by property (must belong to owner).
+  Note: due to a current backend limitation, this parameter is validated but not actually applied as a filter — the response includes all of the owner's properties/rooms regardless of this value.
 - `limit` — optional, max records to return (1–50). Defaults to `10`.
 
 Success response:
@@ -660,7 +662,7 @@ Property does not belong to owner:
 {
   "success": false,
   "message": "Property does not belong to this owner",
-  "errors": ["Forbidden"]
+  "errors": null
 }
 ```
 
@@ -669,6 +671,6 @@ Wrong role (non-owner):
 ```json
 {
   "success": false,
-  "message": "Forbidden: insufficient permissions",
-  "errors": ["Forbidden"]
+  "message": "Forbidden access",
+  "errors": null
 }
