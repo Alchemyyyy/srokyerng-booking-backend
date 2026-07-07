@@ -3,6 +3,7 @@ const reservationService = require("./reservation.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
 const notificationService = require("../notifications/notification.service");
+const { getIO } = require("../../services/socket.registry");
 const { validateAvailabilityQuery } = require("./reservation.validation");
 const {
   validateCreateReservation,
@@ -12,6 +13,14 @@ const {
   validateId,
   validateStatusFilter,
 } = require("./reservation.validation");
+
+const broadcastAdminActivity = (type, data) => {
+  try {
+    getIO()?.to("admins").emit("admin:activity", { type, data });
+  } catch (error) {
+    console.error("Admin activity emit failed:", error);
+  }
+};
 
 const createReservation = asyncHandler(async (req, res) => {
   const normalizedData = normalizeReservationData(req.body);
@@ -49,6 +58,8 @@ const createReservation = asyncHandler(async (req, res) => {
         })
         .catch(() => {});
     }
+
+    broadcastAdminActivity("reservation_created", { reservation_id: reservation.id });
 
     return successResponse(res, "Reservation created successfully", reservation, 201);
   } catch (err) {
@@ -137,6 +148,8 @@ const cancelReservation = asyncHandler(async (req, res) => {
       })
       .catch(() => {});
   }
+
+  broadcastAdminActivity("reservation_cancelled", { reservation_id: reservation.id });
 
   return successResponse(res, "Reservation cancelled successfully", reservation);
 });
@@ -228,6 +241,13 @@ const ownerUpdateReservationStatus = asyncHandler(async (req, res) => {
         })
         .catch(() => {});
     }
+  }
+
+  if (status === "confirmed" || status === "cancelled") {
+    broadcastAdminActivity(
+      status === "confirmed" ? "reservation_confirmed" : "reservation_cancelled",
+      { reservation_id: reservation.id },
+    );
   }
 
   return successResponse(res, "Reservation status updated successfully", reservation);

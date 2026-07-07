@@ -1,5 +1,6 @@
 const notificationModel = require("./notification.model");
 const emailService = require("./email.service");
+const { getIO } = require("../../services/socket.registry");
 
 const NOTIFICATION_TYPES = {
   RESERVATION_CREATED: "reservation_created",
@@ -170,6 +171,19 @@ const notifyUser = async ({
     metadata: data,
     deliveryStatus: "delivered",
   });
+
+  try {
+    getIO()?.to(`user_${userId}`).emit("notification:new", {
+      id: notificationId,
+      type,
+      title,
+      message,
+      data,
+      created_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Realtime notification emit failed:", error);
+  }
 
   if (critical || email) {
     await sendCriticalEmail({

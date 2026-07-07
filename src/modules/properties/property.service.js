@@ -4,6 +4,7 @@ const property = require("./property.model");
 const roomModel = require("../rooms/room.model");
 
 const notificationService = require("../notifications/notification.service");
+const { getIO } = require("../../services/socket.registry");
 
 const {
   createPropertySchema,
@@ -173,6 +174,17 @@ const register = async (user_id, body) => {
   // FETCH CREATED PROPERTY
   // =========================
   const [rows] = await property.getById(result.insertId);
+
+  try {
+    getIO()
+      ?.to("admins")
+      .emit("admin:activity", {
+        type: "property_submitted",
+        data: { property_id: result.insertId, owner_id: user_id },
+      });
+  } catch (error) {
+    console.error("Admin activity emit failed:", error);
+  }
 
   return {
     result: true,

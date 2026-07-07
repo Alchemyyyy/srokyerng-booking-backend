@@ -3,6 +3,7 @@ const paymentService = require("./payment.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 const asyncHandler = require("../../utils/asyncHandler");
 const notificationService = require("../notifications/notification.service");
+const { getIO } = require("../../services/socket.registry");
 const {
   validateCreatePayment,
   validateVerifyPayment,
@@ -12,6 +13,14 @@ const {
   validateUpdateOwnerPaymentAccount,
 } = require("./payment.validation");
 const { validateId } = require("../reservations/reservation.validation");
+
+const broadcastAdminActivity = (type, data) => {
+  try {
+    getIO()?.to("admins").emit("admin:activity", { type, data });
+  } catch (error) {
+    console.error("Admin activity emit failed:", error);
+  }
+};
 
 // ─── Customer ──────────────────────────────────────────────────────
 
@@ -265,6 +274,11 @@ const uploadReceipt = asyncHandler(async (req, res) => {
       .catch(() => {});
   }
 
+  broadcastAdminActivity("payment_submitted", {
+    payment_id: payment.id,
+    reservation_id: payment.reservation_id,
+  });
+
   return successResponse(res, "Receipt uploaded successfully", payment);
 });
 
@@ -316,6 +330,11 @@ const verifyPayment = asyncHandler(async (req, res) => {
       .catch(() => {});
   }
 
+  broadcastAdminActivity("payment_verified", {
+    payment_id: payment.id,
+    reservation_id: payment.reservation_id,
+  });
+
   return successResponse(res, "Payment verified successfully", payment);
 });
 
@@ -354,6 +373,11 @@ const rejectPayment = asyncHandler(async (req, res) => {
       .catch(() => {});
   }
 
+  broadcastAdminActivity("payment_rejected", {
+    payment_id: payment.id,
+    reservation_id: payment.reservation_id,
+  });
+
   return successResponse(res, "Payment rejected successfully", payment);
 });
 
@@ -387,6 +411,11 @@ const refundPayment = asyncHandler(async (req, res) => {
       })
       .catch(() => {});
   }
+
+  broadcastAdminActivity("payment_refunded", {
+    payment_id: payment.id,
+    reservation_id: payment.reservation_id,
+  });
 
   return successResponse(res, "Payment refunded successfully", payment);
 });
